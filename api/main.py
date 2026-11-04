@@ -18,8 +18,8 @@ from processing.batch import sweep_stalled_events
 SWEEP_INTERVAL_MINUTES = int(os.getenv("SWEEP_INTERVAL_MINUTES", "15"))
 
 app = FastAPI(
-    title="FitFunda Media AI",
-    description="AI-powered photo discovery — selfie-based face search (OCR-DISABLED: BIB OCR is off)",
+    title="Selfie Photo Search",
+    description="Find your photos in an event by uploading a selfie (face search with CompreFace + pgvector). OCR-DISABLED: BIB number search is off.",
     version="1.0.0",
 )
 

@@ -1,14 +1,12 @@
 
-# Resource caps below assume our whole stack (db + the 5 CompreFace
-# containers + api) gets roughly a third of an 8 vCPU / 24 GB Contabo box
-# (~3 vCPU / ~8 GB total) — the rest is reserved for the website and the
-# separately-owned RAG chatbot sharing the same host. This is a placeholder
-# split, not measured numbers; revisit once real usage is observed.
+# Resource caps below keep the whole stack (db + the 5 CompreFace containers + api) within roughly
+# 3 vCPU / 8 GB. They are conservative defaults for a small shared machine, not tuned values:
+# docs/benchmarks/RESULTS.md was measured under exactly these caps (compreface-core at 1 CPU is the
+# bottleneck). Raise them for real use.
 #
-# NOTE: `deploy.resources.limits` is only enforced by Docker Compose V2
-# (`docker compose ...`), not the legacy V1 `docker-compose` binary — confirm
-# `docker compose version` on the host and check `docker stats` after
-# deploying to make sure these are actually being applied.
+# NOTE: `deploy.resources.limits` is only enforced by Docker Compose V2 (`docker compose ...`), not the
+# legacy V1 `docker-compose` binary. Check `docker compose version`, and `docker stats` after starting,
+# to confirm the limits are applied.
 
 services:
 

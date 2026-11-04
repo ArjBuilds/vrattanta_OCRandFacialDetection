@@ -1,4 +1,4 @@
--- FitFunda Media AI — PostgreSQL Schema
+-- Selfie Photo Search — PostgreSQL schema
 -- Run with: Get-Content db/schema.sql | docker exec -i media_ai_db psql -U media_user -d media_ai
 -- Or (bash): docker exec -i media_ai_db psql -U media_user -d media_ai < db/schema.sql
 
