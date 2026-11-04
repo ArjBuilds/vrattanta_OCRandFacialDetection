@@ -232,9 +232,22 @@ def test_no_face_in_selfie_is_422(client, clean_db, jpeg_bytes, monkeypatch):
     assert "No face detected" in r.json()["error"]
 
 
-# ── BUG: CompreFace down must be 503, not "no face" (fixed in a later commit) ─
+def test_undecodable_selfie_is_422_not_500(client, clean_db, jpeg_bytes, monkeypatch):
+    patch_extractor(monkeypatch, face_mod.UnreadableImageError("truncated"))
+    r = search(client, jpeg_bytes)
+    assert r.status_code == 422 and "could not be read" in r.json()["error"]
 
-@pytest.mark.xfail(strict=True, reason="BUG: search maps every CompreFace failure to 422 'no face'")
+
+def test_503_does_not_leak_the_internal_error(client, clean_db, jpeg_bytes, monkeypatch):
+    patch_post(monkeypatch, BAD_KEY)
+    r = search(client, jpeg_bytes)
+    assert r.status_code == 503
+    assert "API Key" not in r.text and "10" not in r.json()["detail"].split()
+    assert r.headers.get("retry-after") == "30"
+
+
+# ── CompreFace down must be 503, not "no face" ────────────────────────────────
+
 @pytest.mark.parametrize("failure", [
     requests.exceptions.ConnectionError("refused"),
     requests.exceptions.Timeout("slow"),
@@ -247,7 +260,6 @@ def test_compreface_failure_is_503_not_422(client, clean_db, jpeg_bytes, monkeyp
     assert search(client, jpeg_bytes).status_code == 503
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: missing COMPREFACE_API_KEY is reported as 'no face'")
 def test_missing_compreface_key_is_503(client, clean_db, jpeg_bytes, monkeypatch):
     monkeypatch.setattr(face_mod, "COMPREFACE_API_KEY", "")
     assert search(client, jpeg_bytes).status_code == 503

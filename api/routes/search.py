@@ -118,9 +118,24 @@ async def search_by_face(
         # Extract embedding from selfie
         try:
             faces = extract_face_embedding(tmp_path)
-        except (FaceServiceError, UnreadableImageError) as e:
-            print(f"[SEARCH] face extraction failed: {e}")
-            faces = []
+        except FaceServiceError as e:
+            # CompreFace is down, misconfigured or erroring. That says nothing about the
+            # selfie, so don't tell the user "no face". Details stay in the server log.
+            print(f"[SEARCH] face service unavailable: {e}")
+            raise HTTPException(
+                status_code=503,
+                detail="Face search is temporarily unavailable. Please try again in a few minutes.",
+                headers={"Retry-After": "30"},
+            )
+        except UnreadableImageError as e:
+            print(f"[SEARCH] selfie could not be decoded: {e}")
+            return JSONResponse(
+                status_code=422,
+                content={
+                    "error": "Selfie could not be read",
+                    "detail": "We couldn't read that image. Try taking the selfie again.",
+                },
+            )
     finally:
         try:
             os.unlink(tmp_path)
