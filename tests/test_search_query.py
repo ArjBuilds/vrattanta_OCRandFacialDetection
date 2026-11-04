@@ -119,3 +119,35 @@ def test_planner_uses_the_event_index_and_never_scans_all_faces(clean_db, n_phot
     assert "idx_face_embeddings_photo_id" in indexes, nodes
     assert ("Seq Scan", "face_embeddings", None) not in nodes, nodes
     assert ("Seq Scan", "event_photos", None) not in nodes, nodes
+
+
+# ── no vector index ──────────────────────────────────────────────────────────
+
+def test_schema_creates_no_vector_index(test_db):
+    rows = execute_query("SELECT indexname FROM pg_indexes WHERE schemaname = 'media_ai' AND indexdef ILIKE '%%ivfflat%%'", fetch="all")
+    assert rows == []
+
+
+def test_reapplying_the_schema_drops_the_old_ivfflat_index(test_db):
+    """Databases created by earlier versions have the index; loading the schema again must remove it."""
+    from pathlib import Path
+
+    schema = (Path(__file__).resolve().parent.parent / "db" / "schema.sql").read_text(encoding="utf-8")
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("CREATE INDEX idx_face_embeddings_ivfflat ON media_ai.face_embeddings USING ivfflat (embedding vector_cosine_ops) WITH (lists = 10)")
+        conn.commit()
+        with conn.cursor() as cur:
+            cur.execute(schema)
+        conn.commit()
+    finally:
+        release_conn(conn)
+    assert execute_query("SELECT count(*) FROM pg_indexes WHERE indexname = 'idx_face_embeddings_ivfflat'", fetch="one")[0] == 0
+
+
+def test_search_works_with_no_vector_index(clean_db):
+    ev = str(uuid.uuid4())
+    bulk_load([(ev, [0.9]), (ev, [0.2])])
+    rows = execute_query(FACE_SEARCH_SQL, {"event_id": ev, "q": vec(1.0), "thr": 0.7}, fetch="all")
+    assert len(rows) == 1

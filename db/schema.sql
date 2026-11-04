@@ -88,12 +88,14 @@ CREATE TABLE IF NOT EXISTS media_ai.face_embeddings (
 CREATE INDEX IF NOT EXISTS idx_face_embeddings_photo_id
     ON media_ai.face_embeddings(photo_id);
 
--- IVFFlat index for fast cosine similarity search
--- Note: requires at least 100 rows before the index is useful
-CREATE INDEX IF NOT EXISTS idx_face_embeddings_ivfflat
-    ON media_ai.face_embeddings
-    USING ivfflat (embedding vector_cosine_ops)
-    WITH (lists = 100);
+-- No vector index on purpose. This table used to have an IVFFlat index (lists = 100), created while the
+-- table was empty. Nothing used it: the face search is exact and scoped to one event (db/queries.py), and
+-- its plans never touched the index. Benchmarks (docs/benchmarks/RESULTS.md, section 6): the same query
+-- returns identical results and is no slower without it, and an IVFFlat index built on an empty table had
+-- recall 0.375 at pgvector's default probes. Drop it from databases created by earlier versions:
+DROP INDEX IF EXISTS media_ai.idx_face_embeddings_ivfflat;
+-- If a single event ever grows to tens of thousands of faces, build an index AFTER loading data, with
+-- lists near sqrt(rows) and probes of 16 or more (see docs/DECISIONS.md), and measure first.
 
 -- ─────────────────────────────────────────────
 -- Table: search_requests
