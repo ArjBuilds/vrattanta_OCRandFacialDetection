@@ -265,9 +265,8 @@ def test_missing_compreface_key_is_503(client, clean_db, jpeg_bytes, monkeypatch
     assert search(client, jpeg_bytes).status_code == 503
 
 
-# ── BUG: search must use get_best_face, not faces[0] ─────────────────────────
+# ── search must use get_best_face, not faces[0] ──────────────────────────────
 
-@pytest.mark.xfail(strict=True, reason="BUG: search uses faces[0] instead of get_best_face")
 def test_search_uses_the_largest_face_in_the_selfie(client, clean_db, jpeg_bytes, monkeypatch):
     background = seed(EVENT, 0.0)[0]       # a photo of the small background person
     wanted = seed(EVENT, 0.9)[0]           # a photo of the selfie's main subject

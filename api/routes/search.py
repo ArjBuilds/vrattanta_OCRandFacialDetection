@@ -17,7 +17,7 @@ from api.security import (
     validate_image,
 )
 from db.connection import execute_query
-from processing.face import FaceServiceError, UnreadableImageError, extract_face_embedding
+from processing.face import FaceServiceError, UnreadableImageError, extract_face_embedding, get_best_face
 # OCR-DISABLED: BibSearchResponse and BibDetectionResult are only used by the disabled BIB routes.
 from api.models import FaceSearchResponse, PhotoMatch  # , BibSearchResponse, BibDetectionResult
 
@@ -151,8 +151,9 @@ async def search_by_face(
             },
         )
 
-    # Use the first (best) face embedding for the similarity search
-    query_embedding = faces[0]["embedding"]
+    # CompreFace returns faces in no particular order. Search with the most prominent
+    # one (largest bounding box) so a bystander in the selfie isn't used by mistake.
+    query_embedding = get_best_face(faces)["embedding"]
 
     rows = execute_query(
         """
