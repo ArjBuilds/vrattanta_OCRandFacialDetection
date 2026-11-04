@@ -60,7 +60,7 @@
 
     label { font-weight: 600; display: block; margin-bottom: 6px; font-size: 0.9rem; }
 
-    select {
+    select, input[type="password"] {
       width: 100%;
       padding: 10px 14px;
       border: 1.5px solid var(--border);
@@ -203,6 +203,9 @@
   <p class="subtitle">Drag and drop photos or browse to select. All uploads are processed automatically for face detection.</p>
 
   <div class="card">
+    <label for="apiKey">Upload key</label>
+    <input type="password" id="apiKey" autocomplete="off" placeholder="Paste the upload key you were given" />
+
     <label for="eventSelect">Select Event</label>
     <select id="eventSelect">
       <option value="">— Choose an event —</option>
@@ -272,6 +275,7 @@
   function handleFiles(files) {
     const eventId = document.getElementById('eventSelect').value;
     if (!eventId) { alert('Please select an event before uploading.'); return; }
+    if (!apiKeyValue()) { alert('Please enter the upload key first.'); return; }
     if (!files || files.length === 0) return;
 
     fileItems = Array.from(files);
@@ -317,7 +321,7 @@
     formData.append('event_id', eventId);
 
     try {
-      const res = await fetch('/upload', { method: 'POST', body: formData });
+      const res = await fetch('/upload', { method: 'POST', body: formData, headers: authHeaders() });
       if (res.ok) {
         statusEl.textContent = '✓ Done';
         statusEl.className = 'status-badge success';
@@ -325,7 +329,7 @@
       } else {
         const data = await res.json().catch(() => ({}));
         statusEl.textContent = '✗ Failed';
-        statusEl.title = data.detail || 'Upload error';
+        statusEl.title = (typeof data.detail === 'string' ? data.detail : '') || 'Upload error';
         statusEl.className = 'status-badge failed';
         failCount++;
       }
@@ -351,6 +355,15 @@
     document.getElementById('progressLabel').textContent = `Uploading photo ${done + 1} of ${total}...`;
   }
 
+  // The key is kept in sessionStorage only (cleared when the tab closes), never localStorage.
+  const apiKeyInput = document.getElementById('apiKey');
+  try { apiKeyInput.value = sessionStorage.getItem('uploadApiKey') || ''; } catch (e) {}
+  apiKeyInput.addEventListener('input', () => {
+    try { sessionStorage.setItem('uploadApiKey', apiKeyInput.value); } catch (e) {}
+  });
+  function apiKeyValue() { return apiKeyInput.value.trim(); }
+  function authHeaders() { return { 'X-API-Key': apiKeyValue() }; }
+
   const BATCH_TRIGGER_MAX_ATTEMPTS = 3;
   const BATCH_TRIGGER_RETRY_DELAY_MS = 2000;
 
@@ -360,7 +373,14 @@
       : `Retrying (attempt ${attempt}/${BATCH_TRIGGER_MAX_ATTEMPTS})...`;
 
     try {
-      const res = await fetch(`/admin/batch/${eventId}`, { method: 'POST' });
+      const res = await fetch(`/admin/batch/${eventId}`, { method: 'POST', headers: authHeaders() });
+      if (res.status === 401 || res.status === 403) {
+        // An upload-only key cannot start processing. The server's periodic sweep will pick
+        // these photos up on its own; an admin key here (or an admin) starts it immediately.
+        document.getElementById('progressLabel').textContent =
+          'Upload complete. Processing starts automatically within a few minutes (this key cannot start it immediately).';
+        return;
+      }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       document.getElementById('progressLabel').textContent = `All done! Face detection is running in the background.`;
     } catch (err) {

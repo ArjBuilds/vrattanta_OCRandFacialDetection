@@ -19,6 +19,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 # Allow running as a script from the project root
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from api.security import resolve_storage_path
 from db.connection import execute_query
 # OCR-DISABLED: BIB OCR is off; selfie search is the only active flow.
 # from processing.ocr import extract_bib
@@ -197,29 +198,26 @@ def batch_process_event(event_id: str) -> dict:
 
         print(f"[BATCH] Starting processing for event {event_id} — {total} photos")
 
-        # image_url is stored as the path relative to STORAGE_PATH
-        # When running locally, resolve against the project root
-        resolved = [
-            (
-                photo_id,
-                image_url if Path(image_url).exists() else str(Path(".") / image_url.lstrip("/")),
-                face_attempted_at,
-            )
-            for photo_id, image_url, face_attempted_at in photos
-        ]
+        # image_url is stored relative to STORAGE_PATH (older rows hold absolute
+        # paths). resolve_storage_path() reads both and refuses anything outside
+        # STORAGE_PATH; a refused path is treated like a missing file.
+        resolved = []
+        for photo_id, image_url, face_attempted_at in photos:
+            path = resolve_storage_path(image_url)
+            resolved.append((photo_id, path, face_attempted_at))
 
         # ── Figure out what actually needs doing ────────────────────────────
         # OCR-DISABLED: ocr_targets = []  (and the per-photo OCR skip checks that filled it)
         face_targets = []
         for photo_id, image_path, face_attempted_at in resolved:
-            file_exists = Path(image_path).exists()
+            file_exists = image_path is not None and image_path.is_file()
 
             if face_attempted_at is not None:
                 print(f"[FACE] photo {photo_id} — already attempted, skipping")
             elif not file_exists:
-                print(f"[FACE] photo {photo_id} — image file not found at {image_path}, skipping")
+                print(f"[FACE] photo {photo_id} — image file missing or outside STORAGE_PATH, skipping")
             else:
-                face_targets.append((photo_id, image_path))
+                face_targets.append((photo_id, str(image_path)))
 
         # ── Run face embedding ──────────────────────────────────────────────
         # OCR-DISABLED: this block used to run an OCR pool alongside the face

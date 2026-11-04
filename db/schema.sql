@@ -100,10 +100,14 @@ CREATE TABLE IF NOT EXISTS media_ai.search_requests (
     event_id         UUID,
     search_type      VARCHAR(10),        -- 'bib' or 'face'
     bib_number       VARCHAR(10),        -- populated for BIB searches
-    search_image_url TEXT,               -- selfie path — NULLed after 24h
+    search_image_url TEXT,               -- always NULL for new rows (selfies are not stored); legacy rows NULLed after 24h
     consent_given    BOOLEAN   NOT NULL DEFAULT FALSE,
+    consent_version  TEXT,               -- which consent text the user agreed to
     created_at       TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+-- Safe to re-run against an existing database that predates this column.
+ALTER TABLE media_ai.search_requests ADD COLUMN IF NOT EXISTS consent_version TEXT;
 
 -- ─────────────────────────────────────────────
 -- Table: search_results

@@ -10,11 +10,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from api.routes import upload, search, admin
+from api.routes import upload, search, admin, photos
+from api.security import log_startup_warnings
 from processing.cleanup import delete_expired_selfies
 from processing.batch import sweep_stalled_events
 
-STORAGE_PATH = Path(os.getenv("STORAGE_PATH", "./storage"))
 SWEEP_INTERVAL_MINUTES = int(os.getenv("SWEEP_INTERVAL_MINUTES", "15"))
 
 app = FastAPI(
@@ -23,19 +23,24 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# ── CORS (open for dev) ───────────────────────────────────────────────────────
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# ── CORS ──────────────────────────────────────────────────────────────────────
+# Same-origin only unless CORS_ORIGINS (comma-separated) is set. The bundled portals
+# are served by this app, so they need no CORS. Credentials are never combined with "*".
+_cors_origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()]
+if _cors_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_cors_origins,
+        allow_credentials="*" not in _cors_origins,
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["X-API-Key", "Content-Type"],
+    )
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 app.include_router(upload.router, tags=["Upload"])
 app.include_router(search.router, tags=["Search"])
 app.include_router(admin.router, tags=["Admin"])
+app.include_router(photos.router, tags=["Photos"])
 
 # ── Static files ──────────────────────────────────────────────────────────────
 static_dir = Path(__file__).parent.parent / "static"
@@ -45,19 +50,13 @@ app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 templates_dir = Path(__file__).parent.parent / "templates"
 templates = Jinja2Templates(directory=str(templates_dir))
 
-# ── Storage served as static so image URLs are accessible ────────────────────
-# This mounts after /static to avoid conflict
+# Photos are NOT served from a static mount. They are served by
+# GET /events/{event_id}/photos/{photo_id} (api/routes/photos.py) via signed, expiring links.
 @app.on_event("startup")
 def startup():
-    # Create required storage directories
-    for subdir in ["selfies"]:
-        (STORAGE_PATH / subdir).mkdir(parents=True, exist_ok=True)
+    log_startup_warnings()
 
-    # Mount storage directory so uploaded images are accessible via /storage/...
-    if STORAGE_PATH.exists():
-        app.mount("/storage", StaticFiles(directory=str(STORAGE_PATH)), name="storage")
-
-    # Start scheduler for selfie cleanup + the stalled-batch safety net
+    # Start scheduler for leftover-selfie cleanup + the stalled-batch safety net
     scheduler = BackgroundScheduler()
     scheduler.add_job(delete_expired_selfies, "interval", hours=1, id="selfie_cleanup")
     scheduler.add_job(sweep_stalled_events, "interval", minutes=SWEEP_INTERVAL_MINUTES, id="batch_sweep")

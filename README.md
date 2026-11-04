@@ -83,16 +83,20 @@ uvicorn api.main:app --reload
 http://localhost:8000/docs
 ```
 
-**Upload a photo (curl):**
+**Upload a photo (curl):** needs `UPLOAD_API_KEY` (or `ADMIN_API_KEY`) from your `.env`, and `event_id` must be a UUID.
 ```bash
 curl -X POST http://localhost:8000/upload \
+  -H "X-API-Key: $UPLOAD_API_KEY" \
   -F "file=@/path/to/photo.jpg" \
   -F "event_id=00000000-0000-0000-0000-000000000001"
 ```
 
-**BIB search:**
+**Selfie search:** public, rate limited, returns signed expiring photo links.
 ```bash
-curl "http://localhost:8000/search/bib?event_id=00000000-0000-0000-0000-000000000001&bib=2451"
+curl -X POST http://localhost:8000/search/face \
+  -F "selfie=@/path/to/selfie.jpg" \
+  -F "event_id=00000000-0000-0000-0000-000000000001" \
+  -F "consent=true"
 ```
 
 **Health check:**
@@ -143,21 +147,32 @@ Replace the UUID with your actual event ID. The script:
 
 **Trigger batch processing manually (async):** this is what the upload portal calls automatically — use this directly only if you uploaded photos some other way.
 ```bash
-curl -X POST http://localhost:8000/admin/batch/00000000-0000-0000-0000-000000000001
+curl -X POST -H "X-API-Key: $ADMIN_API_KEY" http://localhost:8000/admin/batch/00000000-0000-0000-0000-000000000001
 ```
 
 **Event stats:**
 ```bash
-curl http://localhost:8000/admin/events/00000000-0000-0000-0000-000000000001/stats
+curl -H "X-API-Key: $ADMIN_API_KEY" http://localhost:8000/admin/events/00000000-0000-0000-0000-000000000001/stats
 ```
+
+---
+
+## Security
+
+- **API keys** (`X-API-Key` header, compared in constant time): `UPLOAD_API_KEY` covers `/upload*`; `ADMIN_API_KEY` covers `/admin/*` and may also upload and fetch photos. A key left empty makes its routes return `503` (a warning is logged at startup). Generate with `python -c "import secrets; print(secrets.token_urlsafe(32))"`.
+- **Photos are not public.** There is no `/storage` mount. Photos are served at `GET /events/{event_id}/photos/{photo_id}?size=thumb|full&exp=...&sig=...`, where `sig` is an HMAC-SHA256 (`PHOTO_URL_SECRET`) over event, photo, size and expiry; links last `PHOTO_URL_TTL_SECONDS` (default 1 hour). Without `PHOTO_URL_SECRET`, search and photo serving return `503`.
+- **Uploads** must have a UUID `event_id`, are size-capped while streaming (`MAX_UPLOAD_MB`), are checked as JPEG/PNG by content (Pillow, with a pixel limit), and are stored as `<uuid>.<ext>` under paths relative to `STORAGE_PATH`.
+- **Selfie search** is rate limited per client IP (`SEARCH_RATE_LIMIT_PER_MINUTE`). The limiter is in-process, not shared across workers, and uses the socket address, so behind a proxy it needs real `X-Forwarded-For` handling.
+- **CORS** is same-origin only unless `CORS_ORIGINS` is set.
+- The upload portal asks for the upload key and keeps it in `sessionStorage`. An upload-only key cannot call `/admin/batch`, so processing then starts via the periodic sweep (`SWEEP_GRACE_MINUTES`); an admin key starts it immediately.
 
 ---
 
 ## Selfie Auto-Deletion
 
-Raw selfie images are automatically deleted after 24 hours. Selfie embeddings are not stored at all. A `search_requests` row (event, time, consent flag) is kept after the image is deleted.
+Selfies are not stored: the image is held in memory, plus a temp file outside `STORAGE_PATH` that is deleted in a `finally` block, and no selfie embedding is saved. Each search writes a `search_requests` row (event, time, `consent_given`, `consent_version`, no image path).
 
-The cleanup job runs every hour via APScheduler (starts with the API). To simulate in development, you can call the cleanup function directly:
+The cleanup job (hourly, via APScheduler) only purges selfies left over from earlier versions that saved them under `storage/selfies`. To run it directly:
 
 ```python
 from processing.cleanup import delete_expired_selfies

@@ -1,14 +1,16 @@
-from fastapi import APIRouter, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Depends
 
+from api.security import parse_uuid, require_admin_key
 from db.connection import execute_query
 from processing.batch import batch_process_event
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_admin_key)])
 
 
 @router.post("/admin/batch/{event_id}")
 def trigger_batch(event_id: str, background_tasks: BackgroundTasks):
     """Trigger batch face embedding processing for an event. (OCR-DISABLED: OCR no longer runs.)"""
+    event_id = parse_uuid(event_id, "event_id")
     background_tasks.add_task(batch_process_event, event_id)
     return {"status": "processing started", "event_id": event_id}
 
@@ -16,6 +18,7 @@ def trigger_batch(event_id: str, background_tasks: BackgroundTasks):
 @router.get("/admin/events/{event_id}/stats")
 def event_stats(event_id: str):
     """Return processing stats for an event."""
+    event_id = parse_uuid(event_id, "event_id")
     total_photos = execute_query(
         "SELECT COUNT(*) FROM media_ai.event_photos WHERE event_id = %s",
         (event_id,),

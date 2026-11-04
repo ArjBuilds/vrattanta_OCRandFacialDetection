@@ -1,11 +1,21 @@
 import os
+import tempfile
 import uuid
-from pathlib import Path
 from datetime import datetime
 
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse
 
+from api.security import (
+    enforce_search_rate_limit,
+    max_selfie_bytes,
+    parse_uuid,
+    read_capped,
+    reject_oversized_request,
+    require_photo_secret,
+    signed_photo_url,
+    validate_image,
+)
 from db.connection import execute_query
 from processing.face import extract_face_embedding
 # OCR-DISABLED: BibSearchResponse and BibDetectionResult are only used by the disabled BIB routes.
@@ -13,19 +23,20 @@ from api.models import FaceSearchResponse, PhotoMatch  # , BibSearchResponse, Bi
 
 router = APIRouter()
 
-STORAGE_PATH = Path(os.getenv("STORAGE_PATH", "./storage"))
 MIN_FACE_CONFIDENCE = float(os.getenv("MIN_FACE_CONFIDENCE", "0.75"))
+CONSENT_VERSION = os.getenv("CONSENT_VERSION", "v1")
 
 
 def _log_search_request(event_id: str, search_type: str, bib_number: str = None, image_url: str = None, consent: bool = False) -> str:
+    """Write a search_requests row. Selfie images are never stored, so image_url is always NULL."""
     search_id = str(uuid.uuid4())
     execute_query(
         """
         INSERT INTO media_ai.search_requests
-            (search_id, event_id, search_type, bib_number, search_image_url, consent_given, created_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
+            (search_id, event_id, search_type, bib_number, search_image_url, consent_given, consent_version, created_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         """,
-        (search_id, event_id, search_type, bib_number, image_url, consent, datetime.utcnow()),
+        (search_id, event_id, search_type, bib_number, image_url, consent, CONSENT_VERSION if consent else None, datetime.utcnow()),
     )
     return search_id
 
@@ -74,32 +85,43 @@ def _log_search_request(event_id: str, search_type: str, bib_number: str = None,
 
 @router.post("/search/face", response_model=FaceSearchResponse)
 async def search_by_face(
+    request: Request,
     selfie: UploadFile = File(...),
     event_id: str = Form(...),
     consent: bool = Form(...),
 ):
+    enforce_search_rate_limit(request)
+    require_photo_secret()  # result links must be signable; fail before doing any work
+    event_id = parse_uuid(event_id, "event_id")
+
     if not consent:
         raise HTTPException(
             status_code=400,
             detail="Consent is required to perform face search. Please agree to the terms before uploading a selfie.",
         )
 
-    # Save selfie temporarily
-    selfies_dir = STORAGE_PATH / "selfies"
-    selfies_dir.mkdir(parents=True, exist_ok=True)
-    selfie_filename = f"{uuid.uuid4().hex}.jpg"
-    selfie_path = selfies_dir / selfie_filename
-    selfie_path.write_bytes(await selfie.read())
+    reject_oversized_request(request, max_selfie_bytes())
+    selfie_bytes = await read_capped(selfie, max_selfie_bytes())
+    ext, _, _ = validate_image(selfie_bytes)
 
-    search_id = _log_search_request(
-        event_id=event_id,
-        search_type="face",
-        image_url=str(selfie_path),
-        consent=True,
-    )
+    # Consent record is written before the selfie goes to CompreFace. The selfie itself
+    # is never stored: search_image_url stays NULL and no selfie embedding is saved.
+    _log_search_request(event_id=event_id, search_type="face", image_url=None, consent=True)
 
-    # Extract embedding from selfie
-    faces = extract_face_embedding(str(selfie_path))
+    # CompreFace helper needs a file path; use a temp file outside STORAGE_PATH and
+    # always delete it.
+    fd, tmp_path = tempfile.mkstemp(prefix="selfie_", suffix=f".{ext}")
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(selfie_bytes)
+
+        # Extract embedding from selfie
+        faces = extract_face_embedding(tmp_path)
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
 
     if faces is None:
         return JSONResponse(
@@ -118,8 +140,7 @@ async def search_by_face(
         SELECT
             ep.photo_id,
             ep.event_id,
-            ep.image_url,
-            ep.thumbnail_url,
+            ep.thumbnail_url IS NOT NULL AS has_thumb,
             1 - (fe.embedding <=> %s::vector) AS confidence
         FROM media_ai.face_embeddings fe
         JOIN media_ai.event_photos ep ON ep.photo_id = fe.photo_id
@@ -136,9 +157,9 @@ async def search_by_face(
         PhotoMatch(
             photo_id=str(r[0]),
             event_id=str(r[1]),
-            image_url=r[2],
-            thumbnail_url=r[3],
-            confidence=round(float(r[4]), 4) if r[4] is not None else None,
+            image_url=signed_photo_url(str(r[1]), str(r[0]), "full"),
+            thumbnail_url=signed_photo_url(str(r[1]), str(r[0]), "thumb") if r[2] else None,
+            confidence=round(float(r[3]), 4) if r[3] is not None else None,
         )
         for r in (rows or [])
     ]

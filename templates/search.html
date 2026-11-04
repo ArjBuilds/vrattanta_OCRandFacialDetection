@@ -334,11 +334,9 @@
     gallery.innerHTML = '';
 
     photos.forEach(photo => {
-      const imgSrc = photo.thumbnail_url
-        ? '/storage/' + photo.thumbnail_url.replace(/^.*storage[/\\]/, '')
-        : '/storage/' + photo.image_url.replace(/^.*storage[/\\]/, '');
-
-      const fullSrc = '/storage/' + photo.image_url.replace(/^.*storage[/\\]/, '');
+      // The API returns signed, expiring links (/events/{event}/photos/{photo}?...).
+      const imgSrc = photo.thumbnail_url || photo.image_url;
+      const fullSrc = photo.image_url;
 
       const confLabel = photo.confidence ? (photo.confidence * 100).toFixed(0) + '%' : '';
       const confClass = confidenceClass(photo.confidence);
@@ -346,7 +344,7 @@
       const card = document.createElement('div');
       card.className = 'photo-card';
       card.innerHTML = `
-        <img src="${imgSrc}" alt="Race photo" onerror="this.src='https://via.placeholder.com/300x300?text=Photo'" loading="lazy"/>
+        <img src="${imgSrc}" alt="Race photo" onerror="this.onerror=null;this.style.visibility='hidden'" loading="lazy"/>
         <div class="photo-footer">
           ${confLabel ? `<span class="confidence-badge ${confClass}">${confLabel}</span>` : '<span></span>'}
           <a href="${fullSrc}" download>
@@ -399,7 +397,7 @@
       const res = await fetch('/search/face', { method: 'POST', body: formData });
       const data = await res.json();
 
-      if (!res.ok) throw new Error(data.detail || 'Face search failed');
+      if (!res.ok) throw new Error((typeof data.detail === 'string' ? data.detail : '') || 'Face search failed');
       renderResults(data.photos);
     } catch (err) {
       document.getElementById('loadingState').style.display = 'none';
