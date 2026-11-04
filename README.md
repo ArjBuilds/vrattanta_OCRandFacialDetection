@@ -26,7 +26,7 @@ cd media-ai
 cp .env.example .env
 
 # 3. Build and start all services
-docker-compose up --build
+docker compose up --build
 ```
 
 The API will be available at **http://localhost:8000**
@@ -35,7 +35,7 @@ The API will be available at **http://localhost:8000**
 
 ## Load the Database Schema
 
-After `docker-compose up`, run the schema once to create all tables.
+After `docker compose up`, run the schema once to create all tables.
 
 **PowerShell (Windows):**
 ```powershell
@@ -52,7 +52,7 @@ Verify it worked:
 docker exec -i media_ai_db psql -U media_user -d media_ai -c "\dt media_ai.*"
 ```
 
-You should see 5 tables: `event_photos`, `bib_detections`, `face_embeddings`, `search_requests`, `search_results`.
+You should see 7 tables: `event_photos`, `bib_detections`, `face_embeddings`, `search_requests`, `search_results`, `processing_errors`, `batch_runs`.
 
 ---
 
@@ -106,8 +106,8 @@ curl http://localhost:8000/health
 
 | Portal | URL |
 |---|---|
-| Photographer Upload Portal | http://localhost:8000/static/upload_portal.html |
-| Participant Photo Search | http://localhost:8000/static/search.html |
+| Photographer Upload Portal | http://localhost:8000/upload_portal |
+| Participant Photo Search | http://localhost:8000/search |
 | API Docs (Swagger) | http://localhost:8000/docs |
 
 > **Note:** The templates are served from the `templates/` folder. If you're running in Docker, they're volume-mounted so changes reflect immediately without rebuild.
@@ -155,7 +155,7 @@ curl http://localhost:8000/admin/events/00000000-0000-0000-0000-000000000001/sta
 
 ## Selfie Auto-Deletion
 
-Raw selfie images are automatically deleted after 24 hours. Only the face embedding is retained.
+Raw selfie images are automatically deleted after 24 hours. Selfie embeddings are not stored at all. A `search_requests` row (event, time, consent flag) is kept after the image is deleted.
 
 The cleanup job runs every hour via APScheduler (starts with the API). To simulate in development, you can call the cleanup function directly:
 
@@ -171,8 +171,8 @@ delete_expired_selfies()
 Face search is implemented end-to-end via a self-hosted [CompreFace](https://github.com/exadel-inc/CompreFace) stack, already wired into `docker-compose.yml` (`compreface-core`, `compreface-api`, `compreface-admin`, `compreface-ui`, plus its own Postgres).
 
 **Setup:**
-1. `docker-compose up --build` to bring up CompreFace alongside the rest of the stack.
-2. Open the CompreFace admin UI at **http://localhost:8001**, create an account, then create a Face Recognition service and copy its API key.
+1. `docker compose up --build` to bring up CompreFace alongside the rest of the stack.
+2. Open the CompreFace admin UI at **http://localhost:8001**, create an account, then create a **Face Detection** service (not Face Recognition; the code calls `/api/v1/detection/detect`) and copy its API key.
 3. Add the key to `.env`:
    ```
    COMPREFACE_API_KEY=your_key_here

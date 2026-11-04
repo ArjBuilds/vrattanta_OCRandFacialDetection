@@ -4,3 +4,14 @@ storage/
 __pycache__/
 *.pyc
 .pytest_cache/
+
+# Local-only env files and test data (never commit)
+.env.*
+!.env.example
+*.jpg
+*.jpeg
+*.png
+*.heic
+*.webp
+test_photos/
+bench_out/

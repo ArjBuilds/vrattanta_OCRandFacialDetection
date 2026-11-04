@@ -3,7 +3,7 @@ import tempfile
 import requests
 from PIL import Image, ImageOps
 
-COMPREFACE_URL = os.getenv("COMPREFACE_URL", "http://localhost:8000")
+COMPREFACE_URL = os.getenv("COMPREFACE_URL", "http://localhost:8001")
 COMPREFACE_API_KEY = os.getenv("COMPREFACE_API_KEY", "")
 
 # CompreFace's core service has an internal IMG_LENGTH_LIMIT of 640px.
