@@ -302,19 +302,16 @@ def test_extract_sends_a_resized_copy_and_cleans_up(image_file, tmp_path, monkey
     assert not [f for f in set(os.listdir(tempfile.gettempdir())) - before if f.endswith(".jpg")]
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: 'no face' (HTTP 400 code 28) and infrastructure failures are both None")
 def test_no_face_returns_empty_list(image_file, monkeypatch):
     patch_post(monkeypatch, NO_FACE)
     assert face_mod.extract_face_embedding(image_file) == []
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: 200 with an empty result list is None, not []")
 def test_empty_result_returns_empty_list(image_file, monkeypatch):
     patch_post(monkeypatch, FakeResponse(200, {"result": []}))
     assert face_mod.extract_face_embedding(image_file) == []
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: infrastructure errors return None instead of raising")
 @pytest.mark.parametrize("failure", [
     requests.exceptions.ConnectionError("refused"),
     requests.exceptions.Timeout("slow"),
@@ -328,14 +325,12 @@ def test_infrastructure_errors_raise(image_file, monkeypatch, failure):
         face_mod.extract_face_embedding(image_file)
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: missing API key returns None instead of raising")
 def test_missing_api_key_raises(image_file, monkeypatch):
     monkeypatch.setattr(face_mod, "COMPREFACE_API_KEY", "")
     with pytest.raises(face_mod.FaceServiceError):
         face_mod.extract_face_embedding(image_file)
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: a corrupt image surfaces a raw PIL error, not a permanent-failure error")
 def test_corrupt_image_raises_unreadable(tmp_path, monkeypatch):
     bad = tmp_path / "bad.jpg"
     bad.write_bytes(b"\xff\xd8\xff\xe0 definitely not a jpeg")

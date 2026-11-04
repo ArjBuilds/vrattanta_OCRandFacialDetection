@@ -228,7 +228,6 @@ INFRA = [
 INFRA_IDS = ["connection-refused", "timeout", "bad-key", "compreface-500"]
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: CompreFace down/bad key marks the photo attempted with no error logged")
 @pytest.mark.parametrize("failure", INFRA, ids=INFRA_IDS)
 def test_compreface_failure_leaves_photo_unattempted_and_logs_error(clean_db, storage_dir, jpeg_bytes, monkeypatch, failure):
     patch_post(monkeypatch, failure)
@@ -238,7 +237,6 @@ def test_compreface_failure_leaves_photo_unattempted_and_logs_error(clean_db, st
     assert n_errors(pid) == 1
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: a missing API key marks every photo attempted")
 def test_missing_api_key_leaves_photo_unattempted(clean_db, storage_dir, jpeg_bytes, monkeypatch):
     from processing import face as face_mod
 
@@ -255,7 +253,6 @@ def test_real_no_face_response_is_attempted_without_error(clean_db, storage_dir,
     assert attempted(pid) and n_faces(pid) == 0 and n_errors() == 0
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: a photo that failed while CompreFace was down is never retried")
 def test_photo_is_retried_once_compreface_is_back(clean_db, storage_dir, jpeg_bytes, monkeypatch):
     pid = make_photo(storage_dir, jpeg_bytes)
     patch_post(monkeypatch, requests.exceptions.ConnectionError("down"))
@@ -265,7 +262,6 @@ def test_photo_is_retried_once_compreface_is_back(clean_db, storage_dir, jpeg_by
     assert attempted(pid) and n_faces(pid) == 1
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: the sweep cannot recover photos that were wrongly marked attempted")
 def test_sweep_recovers_photos_after_an_outage(clean_db, storage_dir, jpeg_bytes, monkeypatch):
     monkeypatch.setattr(batch, "SWEEP_GRACE_MINUTES", 0)
     pid = make_photo(storage_dir, jpeg_bytes, uploaded_at=datetime.utcnow() - timedelta(minutes=30))

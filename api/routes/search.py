@@ -17,7 +17,7 @@ from api.security import (
     validate_image,
 )
 from db.connection import execute_query
-from processing.face import extract_face_embedding
+from processing.face import FaceServiceError, UnreadableImageError, extract_face_embedding
 # OCR-DISABLED: BibSearchResponse and BibDetectionResult are only used by the disabled BIB routes.
 from api.models import FaceSearchResponse, PhotoMatch  # , BibSearchResponse, BibDetectionResult
 
@@ -116,14 +116,18 @@ async def search_by_face(
             f.write(selfie_bytes)
 
         # Extract embedding from selfie
-        faces = extract_face_embedding(tmp_path)
+        try:
+            faces = extract_face_embedding(tmp_path)
+        except (FaceServiceError, UnreadableImageError) as e:
+            print(f"[SEARCH] face extraction failed: {e}")
+            faces = []
     finally:
         try:
             os.unlink(tmp_path)
         except OSError:
             pass
 
-    if faces is None:
+    if not faces:
         return JSONResponse(
             status_code=422,
             content={

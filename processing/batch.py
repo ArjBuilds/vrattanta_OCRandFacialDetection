@@ -23,7 +23,7 @@ from api.security import resolve_storage_path
 from db.connection import execute_query
 # OCR-DISABLED: BIB OCR is off; selfie search is the only active flow.
 # from processing.ocr import extract_bib
-from processing.face import extract_face_embedding
+from processing.face import UnreadableImageError, extract_face_embedding
 
 # OCR-DISABLED: OCR worker pool size.
 # # Tesseract runs as a subprocess per call, so OCR calls can run concurrently
@@ -100,36 +100,47 @@ def _mark_attempted(photo_id: str, column: str):
 
 
 def _process_face(photo_id: str, image_path: str) -> bool:
-    """Run face embedding for one photo and store results. Returns True on success."""
-    success = False
+    """
+    Run face embedding for one photo and store results. Returns True if the photo was
+    processed (including "no face in this photo").
+
+    How outcomes are recorded:
+      * faces found, or no face            -> stored, photo marked attempted
+      * image cannot be decoded            -> permanent: error logged, photo marked attempted
+      * anything else (CompreFace down, wrong API key, 5xx, timeouts, DB errors)
+                                           -> error logged, photo left UNMARKED so the
+                                              next batch run or sweep retries it
+    """
     try:
         faces = extract_face_embedding(image_path)
 
-        if faces is None:
-            print(f"[FACE] photo {photo_id} — no embedding returned, skipping")
-        else:
-            for face in faces:
-                execute_query(
-                    """
-                    INSERT INTO media_ai.face_embeddings
-                        (photo_id, embedding, confidence, face_box)
-                    VALUES (%s, %s, %s, %s)
-                    """,
-                    (
-                        photo_id,
-                        face["embedding"],
-                        face.get("confidence"),
-                        json.dumps(face.get("bounding_box")),
-                    ),
-                )
-            print(f"[FACE] photo {photo_id} — stored {len(faces)} face(s)")
-            success = True
-    except Exception as e:
-        print(f"[FACE] photo {photo_id} — failed ({e}), skipping")
+        for face in faces:
+            execute_query(
+                """
+                INSERT INTO media_ai.face_embeddings
+                    (photo_id, embedding, confidence, face_box)
+                VALUES (%s, %s, %s, %s)
+                """,
+                (
+                    photo_id,
+                    face["embedding"],
+                    face.get("confidence"),
+                    json.dumps(face.get("bounding_box")),
+                ),
+            )
+        print(f"[FACE] photo {photo_id} — stored {len(faces)} face(s)")
+    except UnreadableImageError as e:
+        print(f"[FACE] photo {photo_id} — unreadable image ({e}), will not retry")
         _record_failure(photo_id, "face", e)
+        _mark_attempted(photo_id, "face_attempted_at")
+        return False
+    except Exception as e:
+        print(f"[FACE] photo {photo_id} — failed ({e}), will retry on the next run")
+        _record_failure(photo_id, "face", e)
+        return False
 
     _mark_attempted(photo_id, "face_attempted_at")
-    return success
+    return True
 
 
 def _claim_batch_run(event_id: str) -> bool:

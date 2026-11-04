@@ -18,29 +18,56 @@ COMPREFACE_API_KEY = os.getenv("COMPREFACE_API_KEY", "")
 # through the CompreFace UI.
 MAX_DIMENSION = 640
 
+# CompreFace answers "no face in this image" with HTTP 400 and this error code
+# (not with 200 and an empty list).
+NO_FACE_ERROR_CODE = 28
+
+
+class FaceServiceError(Exception):
+    """
+    CompreFace could not be used: unreachable, timed out, wrong or missing API key,
+    or it returned an error. The photo itself is fine, so callers should NOT treat the
+    photo as processed — it should be retried later.
+    """
+
+
+class UnreadableImageError(Exception):
+    """The image file cannot be decoded (corrupt or unsupported). Retrying will not help."""
+
 
 def _prepare_image_for_compreface(image_path: str) -> str:
     """
     Fix orientation and resize an image to CompreFace's expected max
     dimension before sending it. Returns the path to a temp JPEG file —
     caller is responsible for deleting it after use.
+
+    Raises UnreadableImageError if the file is not a decodable image.
     """
-    img = Image.open(image_path)
-    img = ImageOps.exif_transpose(img)  # correct rotation before anything else
-    img = img.convert("RGB")  # CompreFace expects color, not grayscale
+    try:
+        with Image.open(image_path) as opened:
+            img = ImageOps.exif_transpose(opened)  # correct rotation before anything else
+            img = img.convert("RGB")  # CompreFace expects color, not grayscale
 
-    w, h = img.size
-    if max(w, h) > MAX_DIMENSION:
-        scale = MAX_DIMENSION / max(w, h)
-        img = img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
+            w, h = img.size
+            if max(w, h) > MAX_DIMENSION:
+                scale = MAX_DIMENSION / max(w, h)
+                img = img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
 
-    tmp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
-    img.save(tmp.name, format="JPEG", quality=90)
-    tmp.close()
-    return tmp.name
+            tmp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
+            try:
+                img.save(tmp.name, format="JPEG", quality=90)
+            except Exception:
+                tmp.close()
+                os.unlink(tmp.name)
+                raise
+            tmp.close()
+            return tmp.name
+    except (OSError, ValueError, SyntaxError, Image.DecompressionBombError, Image.DecompressionBombWarning) as e:
+        # UnidentifiedImageError and truncated files are OSErrors.
+        raise UnreadableImageError(f"{os.path.basename(image_path)}: {e}") from e
 
 
-def extract_face_embedding(image_path: str) -> list[dict] | None:
+def extract_face_embedding(image_path: str) -> list[dict]:
     """
     Send an image to CompreFace detection endpoint and return all detected
     face embeddings.
@@ -56,12 +83,15 @@ def extract_face_embedding(image_path: str) -> list[dict] | None:
             "bounding_box": {x, y, w, h}
         }
 
-    Returns None if CompreFace is unreachable, returns an error, or detects
-    no faces in the image.
+    Returns [] when the image was processed fine but contains no face.
+
+    Raises:
+        FaceServiceError     CompreFace is down/slow, the API key is missing or wrong, or
+                             it returned an error. Not a statement about the image.
+        UnreadableImageError the image file itself cannot be decoded (permanent).
     """
     if not COMPREFACE_API_KEY:
-        print("[FACE] COMPREFACE_API_KEY not set — skipping face embedding")
-        return None
+        raise FaceServiceError("COMPREFACE_API_KEY is not set")
 
     prepared_path = _prepare_image_for_compreface(image_path)
 
@@ -76,20 +106,25 @@ def extract_face_embedding(image_path: str) -> list[dict] | None:
         with open(prepared_path, "rb") as f:
             files = {"file": (os.path.basename(image_path), f, "image/jpeg")}
             response = requests.post(url, headers=headers, params=params, files=files, timeout=30)
-    except requests.exceptions.ConnectionError:
-        print(f"[FACE] Could not connect to CompreFace at {COMPREFACE_URL} — is it running?")
-        return None
-    except requests.exceptions.Timeout:
-        print(f"[FACE] CompreFace request timed out for {image_path}")
-        return None
+    except requests.exceptions.ConnectionError as e:
+        raise FaceServiceError(f"could not connect to CompreFace at {COMPREFACE_URL} — is it running?") from e
+    except requests.exceptions.Timeout as e:
+        raise FaceServiceError(f"CompreFace request timed out for {os.path.basename(image_path)}") from e
+    except requests.exceptions.RequestException as e:
+        raise FaceServiceError(f"CompreFace request failed: {e}") from e
     finally:
         os.unlink(prepared_path)
 
     if response.status_code != 200:
-        print(f"[FACE] CompreFace returned {response.status_code}: {response.text[:200]}")
-        return None
+        if response.status_code == 400 and _error_code(response) == NO_FACE_ERROR_CODE:
+            print(f"[FACE] No faces detected in {os.path.basename(image_path)}")
+            return []
+        raise FaceServiceError(f"CompreFace returned {response.status_code}: {response.text[:200]}")
 
-    data = response.json()
+    try:
+        data = response.json()
+    except ValueError as e:
+        raise FaceServiceError(f"CompreFace returned a non-JSON 200 response: {response.text[:200]}") from e
 
     # Response shape from /detection/detect with calculator plugin:
     # {
@@ -109,8 +144,8 @@ def extract_face_embedding(image_path: str) -> list[dict] | None:
 
     results = data.get("result", [])
     if not results:
-        print(f"[FACE] No faces detected in {image_path}")
-        return None
+        print(f"[FACE] No faces detected in {os.path.basename(image_path)}")
+        return []
 
     faces = []
     for face in results:
@@ -132,7 +167,14 @@ def extract_face_embedding(image_path: str) -> list[dict] | None:
             },
         })
 
-    return faces if faces else None
+    return faces
+
+
+def _error_code(response) -> int | None:
+    try:
+        return response.json().get("code")
+    except (ValueError, AttributeError):
+        return None
 
 
 def get_best_face(faces: list[dict]) -> dict | None:
