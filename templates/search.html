@@ -217,7 +217,7 @@
 
 <div class="container">
   <h1>Find Your Race Photos</h1>
-  <p class="subtitle">Search by BIB number or upload a selfie to find every photo taken of you.</p>
+  <p class="subtitle">Upload a selfie to find every photo taken of you.</p>
 
   <div class="card">
     <!-- Event selector -->
@@ -228,22 +228,23 @@
       <option value="00000000-0000-0000-0000-000000000002">IRL Mumbai Half Marathon 2026</option>
     </select>
 
-    <!-- Search type toggle -->
+    <!-- OCR-DISABLED: search-type toggle and BIB tab. BIB OCR proved unreliable on real
+         race photos, so selfie search is the only search mode. See processing/ocr.py.
     <label>Search By</label>
     <div class="search-toggle">
       <button class="toggle-btn active" id="btnBib" onclick="switchTab('bib')">🔢 BIB Number</button>
       <button class="toggle-btn" id="btnFace" onclick="switchTab('face')">🤳 Upload Selfie</button>
     </div>
 
-    <!-- BIB search -->
     <div class="section visible" id="sectionBib">
       <label for="bibInput">BIB Number</label>
       <input type="text" id="bibInput" placeholder="e.g. 2451" maxlength="5" />
       <button class="btn btn-primary" onclick="searchByBib()">Search Photos</button>
     </div>
+    -->
 
     <!-- Selfie search -->
-    <div class="section" id="sectionFace">
+    <div class="section visible" id="sectionFace">
       <div class="consent-box">
         <strong>Privacy Notice</strong><br/>
         By uploading a selfie, you consent to face recognition processing for the purpose of identifying your event photos. Your selfie will be automatically deleted after 24 hours — only a mathematical representation is retained.
@@ -278,20 +279,21 @@
     <h3>No photos found</h3>
     <p>No exact matches found for your search.</p>
     <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-      <button class="btn btn-outline btn-sm" onclick="switchTab('bib')">Search by BIB Number</button>
-      <button class="btn btn-outline btn-sm" onclick="switchTab('face')">Upload Another Selfie</button>
+      <!-- OCR-DISABLED: <button class="btn btn-outline btn-sm" onclick="switchTab('bib')">Search by BIB Number</button> -->
+      <button class="btn btn-outline btn-sm" onclick="clearResults()">Upload Another Selfie</button>
     </div>
   </div>
 </div>
 
 <script>
-  function switchTab(tab) {
-    document.getElementById('sectionBib').classList.toggle('visible', tab === 'bib');
-    document.getElementById('sectionFace').classList.toggle('visible', tab === 'face');
-    document.getElementById('btnBib').classList.toggle('active', tab === 'bib');
-    document.getElementById('btnFace').classList.toggle('active', tab === 'face');
-    clearResults();
-  }
+  // OCR-DISABLED: tab switching existed only to toggle between BIB and selfie search.
+  // function switchTab(tab) {
+  //   document.getElementById('sectionBib').classList.toggle('visible', tab === 'bib');
+  //   document.getElementById('sectionFace').classList.toggle('visible', tab === 'face');
+  //   document.getElementById('btnBib').classList.toggle('active', tab === 'bib');
+  //   document.getElementById('btnFace').classList.toggle('active', tab === 'face');
+  //   clearResults();
+  // }
 
   function toggleUploadBtn() {
     document.getElementById('btnUploadSelfie').disabled = !document.getElementById('consentCheck').checked;
@@ -356,25 +358,26 @@
     });
   }
 
-  async function searchByBib() {
-    const eventId = document.getElementById('eventSelect').value;
-    const bib = document.getElementById('bibInput').value.trim();
-
-    if (!eventId) { alert('Please select an event first.'); return; }
-    if (!bib) { alert('Please enter a BIB number.'); return; }
-
-    showLoading('Searching photos for BIB ' + bib + '...');
-
-    try {
-      const res = await fetch(`/search/bib?event_id=${encodeURIComponent(eventId)}&bib=${encodeURIComponent(bib)}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Search failed');
-      renderResults(data.photos);
-    } catch (err) {
-      document.getElementById('loadingState').style.display = 'none';
-      alert('Error: ' + err.message);
-    }
-  }
+  // OCR-DISABLED: BIB search handler (the /search/bib route is disabled too).
+  // async function searchByBib() {
+  //   const eventId = document.getElementById('eventSelect').value;
+  //   const bib = document.getElementById('bibInput').value.trim();
+  //
+  //   if (!eventId) { alert('Please select an event first.'); return; }
+  //   if (!bib) { alert('Please enter a BIB number.'); return; }
+  //
+  //   showLoading('Searching photos for BIB ' + bib + '...');
+  //
+  //   try {
+  //     const res = await fetch(`/search/bib?event_id=${encodeURIComponent(eventId)}&bib=${encodeURIComponent(bib)}`);
+  //     const data = await res.json();
+  //     if (!res.ok) throw new Error(data.detail || 'Search failed');
+  //     renderResults(data.photos);
+  //   } catch (err) {
+  //     document.getElementById('loadingState').style.display = 'none';
+  //     alert('Error: ' + err.message);
+  //   }
+  // }
 
   async function searchByFace() {
     const eventId = document.getElementById('eventSelect').value;

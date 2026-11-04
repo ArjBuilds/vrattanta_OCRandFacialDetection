@@ -1,10 +1,10 @@
 FROM python:3.11-slim
 
 # Install system dependencies
-# tesseract-ocr: OCR engine for BIB detection
+# OCR-DISABLED: tesseract-ocr (OCR engine for BIB detection) is not installed.
+# Add it back to the apt-get line, and pytesseract to requirements.txt, to restore OCR.
 # libgl1: required by opencv-python-headless
 RUN apt-get update && apt-get install -y \
-    tesseract-ocr \
     libgl1 \
     && rm -rf /var/lib/apt/lists/*
 

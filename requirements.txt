@@ -4,7 +4,7 @@ python-multipart
 psycopg2-binary
 pillow
 python-dotenv
-pytesseract
+# OCR-DISABLED: pytesseract
 opencv-python-headless
 jinja2
 aiofiles

@@ -19,7 +19,7 @@ SWEEP_INTERVAL_MINUTES = int(os.getenv("SWEEP_INTERVAL_MINUTES", "15"))
 
 app = FastAPI(
     title="FitFunda Media AI",
-    description="AI-powered photo discovery — BIB OCR + Face Search",
+    description="AI-powered photo discovery — selfie-based face search (OCR-DISABLED: BIB OCR is off)",
     version="1.0.0",
 )
 

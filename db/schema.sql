@@ -41,6 +41,13 @@ CREATE INDEX IF NOT EXISTS idx_event_photos_unprocessed
     ON media_ai.event_photos (event_id)
     WHERE ocr_attempted_at IS NULL OR face_attempted_at IS NULL;
 
+-- With OCR disabled, ocr_attempted_at stays NULL for every photo, so the
+-- partial index above matches every row and stops being selective. The sweep
+-- and batch now only look for photos whose face step hasn't run, so index that.
+CREATE INDEX IF NOT EXISTS idx_event_photos_face_unattempted
+    ON media_ai.event_photos (event_id)
+    WHERE face_attempted_at IS NULL;
+
 -- ─────────────────────────────────────────────
 -- Table: bib_detections
 -- Stores OCR-extracted BIB numbers per photo

@@ -1,3 +1,14 @@
+# OCR-DISABLED: nothing imports this module any more. It is kept intact so OCR can be
+# restored.
+#
+# Why: OCR was tried first. BIB OCR proved unreliable on real race photos even
+# with preprocessing, while face matching found photos that OCR missed, so the
+# project's scope moved to selfie search.
+#
+# To restore: search the repo for "OCR-DISABLED:" and undo each site (batch.py,
+# api/routes/search.py, api/routes/admin.py, templates/*.html, Dockerfile,
+# requirements.txt, .env.example, docker-compose.yml). The schema was left intact.
+
 import os
 import re
 import tempfile

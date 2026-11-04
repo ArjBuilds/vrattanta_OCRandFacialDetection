@@ -130,10 +130,7 @@ services:
       STORAGE_PATH: /app/storage
       # When running in Docker, CompreFace is reachable via its service name
       COMPREFACE_URL: http://compreface-ui:80
-      # Lower than the .env.example default (4/2) — this container only
-      # gets 0.6 vCPU on the shared Contabo box. Tune down further (e.g.
-      # OCR_WORKERS=1) if OCR calls are seen queuing/timing out under load.
-      OCR_WORKERS: 2
+      # OCR-DISABLED: OCR_WORKERS: 2
       FACE_WORKERS: 2
     ports:
       - "8000:8000"

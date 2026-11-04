@@ -13,6 +13,8 @@ class UploadResponse(BaseModel):
     uploaded_at: datetime
 
 
+# OCR-DISABLED: BibDetectionResult and BibSearchResponse are kept (unused) so the
+# disabled BIB routes in api/routes/search.py can be restored as-is.
 class BibDetectionResult(BaseModel):
     detection_id: str
     bib_number: str

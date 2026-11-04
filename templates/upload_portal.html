@@ -200,7 +200,7 @@
 
 <div class="container">
   <h1>Upload Event Photos</h1>
-  <p class="subtitle">Drag and drop photos or browse to select. All uploads are processed automatically for BIB detection.</p>
+  <p class="subtitle">Drag and drop photos or browse to select. All uploads are processed automatically for face detection.</p>
 
   <div class="card">
     <label for="eventSelect">Select Event</label>
@@ -356,13 +356,13 @@
 
   async function triggerBatchProcessing(eventId, attempt = 1) {
     document.getElementById('progressLabel').textContent = attempt === 1
-      ? `Starting BIB & face detection...`
+      ? `Starting face detection...`
       : `Retrying (attempt ${attempt}/${BATCH_TRIGGER_MAX_ATTEMPTS})...`;
 
     try {
       const res = await fetch(`/admin/batch/${eventId}`, { method: 'POST' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      document.getElementById('progressLabel').textContent = `All done! BIB & face detection is running in the background.`;
+      document.getElementById('progressLabel').textContent = `All done! Face detection is running in the background.`;
     } catch (err) {
       if (attempt < BATCH_TRIGGER_MAX_ATTEMPTS) {
         await new Promise(r => setTimeout(r, BATCH_TRIGGER_RETRY_DELAY_MS));
@@ -386,7 +386,7 @@
     document.getElementById('summary').classList.add('visible');
     document.getElementById('doneActions').style.display = 'flex';
 
-    // Kick off BIB + face detection for the whole event now that every file
+    // Kick off face detection (OCR-DISABLED: BIB detection no longer runs) for the whole event now that every file
     // in this session has finished uploading — triggered once here rather
     // than per-file, to avoid overlapping batch runs against CompreFace.
     if (successCount > 0) {

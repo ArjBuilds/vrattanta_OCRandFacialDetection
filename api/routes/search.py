@@ -8,7 +8,8 @@ from fastapi.responses import JSONResponse
 
 from db.connection import execute_query
 from processing.face import extract_face_embedding
-from api.models import BibSearchResponse, FaceSearchResponse, PhotoMatch, BibDetectionResult
+# OCR-DISABLED: BibSearchResponse and BibDetectionResult are only used by the disabled BIB routes.
+from api.models import FaceSearchResponse, PhotoMatch  # , BibSearchResponse, BibDetectionResult
 
 router = APIRouter()
 
@@ -29,45 +30,46 @@ def _log_search_request(event_id: str, search_type: str, bib_number: str = None,
     return search_id
 
 
-@router.get("/search/bib", response_model=BibSearchResponse)
-def search_by_bib(event_id: str, bib: str):
-    rows = execute_query(
-        """
-        SELECT
-            ep.photo_id,
-            ep.event_id,
-            ep.image_url,
-            ep.thumbnail_url,
-            bd.confidence
-        FROM media_ai.bib_detections bd
-        JOIN media_ai.event_photos ep ON ep.photo_id = bd.photo_id
-        WHERE ep.event_id = %s
-          AND bd.bib_number = %s
-        ORDER BY bd.confidence DESC
-        """,
-        (event_id, bib),
-        fetch="all",
-    )
-
-    _log_search_request(event_id=event_id, search_type="bib", bib_number=bib)
-
-    photos = [
-        PhotoMatch(
-            photo_id=str(r[0]),
-            event_id=str(r[1]),
-            image_url=r[2],
-            thumbnail_url=r[3],
-            confidence=float(r[4]) if r[4] is not None else None,
-        )
-        for r in (rows or [])
-    ]
-
-    return BibSearchResponse(
-        event_id=event_id,
-        bib_number=bib,
-        total_matches=len(photos),
-        photos=photos,
-    )
+# OCR-DISABLED: GET /search/bib (BIB number search); see the OCR-DISABLED note at the top of processing/ocr.py.
+# @router.get("/search/bib", response_model=BibSearchResponse)
+# def search_by_bib(event_id: str, bib: str):
+#     rows = execute_query(
+#         """
+#         SELECT
+#             ep.photo_id,
+#             ep.event_id,
+#             ep.image_url,
+#             ep.thumbnail_url,
+#             bd.confidence
+#         FROM media_ai.bib_detections bd
+#         JOIN media_ai.event_photos ep ON ep.photo_id = bd.photo_id
+#         WHERE ep.event_id = %s
+#           AND bd.bib_number = %s
+#         ORDER BY bd.confidence DESC
+#         """,
+#         (event_id, bib),
+#         fetch="all",
+#     )
+#
+#     _log_search_request(event_id=event_id, search_type="bib", bib_number=bib)
+#
+#     photos = [
+#         PhotoMatch(
+#             photo_id=str(r[0]),
+#             event_id=str(r[1]),
+#             image_url=r[2],
+#             thumbnail_url=r[3],
+#             confidence=float(r[4]) if r[4] is not None else None,
+#         )
+#         for r in (rows or [])
+#     ]
+#
+#     return BibSearchResponse(
+#         event_id=event_id,
+#         bib_number=bib,
+#         total_matches=len(photos),
+#         photos=photos,
+#     )
 
 
 @router.post("/search/face", response_model=FaceSearchResponse)
@@ -148,25 +150,26 @@ async def search_by_face(
     )
 
 
-@router.get("/photos/{photo_id}/bibs", response_model=list[BibDetectionResult])
-def get_photo_bibs(photo_id: str):
-    rows = execute_query(
-        """
-        SELECT detection_id, bib_number, confidence, bounding_box
-        FROM media_ai.bib_detections
-        WHERE photo_id = %s
-        ORDER BY confidence DESC
-        """,
-        (photo_id,),
-        fetch="all",
-    )
-
-    return [
-        BibDetectionResult(
-            detection_id=str(r[0]),
-            bib_number=r[1],
-            confidence=float(r[2]) if r[2] is not None else 0.0,
-            bounding_box=r[3],
-        )
-        for r in (rows or [])
-    ]
+# OCR-DISABLED: GET /photos/{photo_id}/bibs; see the OCR-DISABLED note at the top of processing/ocr.py.
+# @router.get("/photos/{photo_id}/bibs", response_model=list[BibDetectionResult])
+# def get_photo_bibs(photo_id: str):
+#     rows = execute_query(
+#         """
+#         SELECT detection_id, bib_number, confidence, bounding_box
+#         FROM media_ai.bib_detections
+#         WHERE photo_id = %s
+#         ORDER BY confidence DESC
+#         """,
+#         (photo_id,),
+#         fetch="all",
+#     )
+#
+#     return [
+#         BibDetectionResult(
+#             detection_id=str(r[0]),
+#             bib_number=r[1],
+#             confidence=float(r[2]) if r[2] is not None else 0.0,
+#             bounding_box=r[3],
+#         )
+#         for r in (rows or [])
+#     ]
