@@ -5,7 +5,6 @@ psycopg2-binary
 pillow
 python-dotenv
 # OCR-DISABLED: pytesseract
-opencv-python-headless
 jinja2
 aiofiles
 apscheduler
