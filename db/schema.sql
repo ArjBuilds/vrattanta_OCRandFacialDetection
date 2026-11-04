@@ -34,6 +34,11 @@ CREATE TABLE IF NOT EXISTS media_ai.event_photos (
 ALTER TABLE media_ai.event_photos ADD COLUMN IF NOT EXISTS ocr_attempted_at TIMESTAMP;
 ALTER TABLE media_ai.event_photos ADD COLUMN IF NOT EXISTS face_attempted_at TIMESTAMP;
 
+-- Face search is scoped to one event: it first selects that event's photos (see db/queries.py),
+-- which needs this plain index. Without it the lookup scans every photo row.
+CREATE INDEX IF NOT EXISTS idx_event_photos_event_id
+    ON media_ai.event_photos (event_id);
+
 -- Partial index keeps the periodic sweep's "find unprocessed photos" query
 -- cheap regardless of how many total photos accumulate over time — it only
 -- ever has to scan photos that still need attention, not the whole table.

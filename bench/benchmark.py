@@ -51,6 +51,7 @@ for _k in ("COMPREFACE_URL", "COMPREFACE_API_KEY"):
         os.environ[_k] = ENV[_k]
 os.environ.setdefault("COMPREFACE_URL", "http://localhost:8001")
 
+from db.queries import FACE_SEARCH_SQL  # noqa: E402
 from processing.face import FaceServiceError, extract_face_embedding, get_best_face  # noqa: E402
 
 API = ENV.get("BENCH_API_URL", "http://localhost:8000").rstrip("/")
@@ -59,9 +60,10 @@ THRESHOLD = float(ENV.get("MIN_FACE_CONFIDENCE") or 0.75)
 CONTAINERS = ["media_ai_api", "media_ai_db", "compreface_core", "compreface_api",
               "compreface_admin", "compreface_ui", "compreface_db"]
 
+# CTE only (no LATERAL fence): kept to show the plan is not stable without the fence.
 EVENT_FIRST_QUERY = """
 WITH ev AS MATERIALIZED (
-    SELECT photo_id, event_id, thumbnail_url FROM {s}.event_photos WHERE event_id = %(ev)s
+    SELECT photo_id, event_id, thumbnail_url FROM {s}.event_photos WHERE event_id = %(event_id)s
 )
 SELECT ev.photo_id, ev.event_id, ev.thumbnail_url IS NOT NULL AS has_thumb,
        1 - (fe.embedding <=> %(q)s::vector) AS confidence
@@ -72,16 +74,20 @@ ORDER BY confidence DESC
 LIMIT 50
 """
 
-PROD_QUERY = """
+# The query as it was before the event-first rewrite.
+LEGACY_QUERY = """
 SELECT ep.photo_id, ep.event_id, ep.thumbnail_url IS NOT NULL AS has_thumb,
        1 - (fe.embedding <=> %(q)s::vector) AS confidence
 FROM {s}.face_embeddings fe
 JOIN {s}.event_photos ep ON ep.photo_id = fe.photo_id
-WHERE ep.event_id = %(ev)s
+WHERE ep.event_id = %(event_id)s
   AND 1 - (fe.embedding <=> %(q)s::vector) >= %(thr)s
 ORDER BY confidence DESC
 LIMIT 50
 """
+
+# What the app runs now (db/queries.py), pointed at another schema.
+CURRENT_QUERY = FACE_SEARCH_SQL.replace("media_ai.", "{s}.")
 
 
 # ── small helpers ─────────────────────────────────────────────────────────────
@@ -391,10 +397,10 @@ def phase_search(ds: Dataset, state: dict, n_http=150, n_sql=300) -> dict:
     for i in range(n_sql):
         q = vlit(qs[i % len(qs)])
         t = time.perf_counter()
-        cur.execute(PROD_QUERY.format(s="media_ai"), {"q": q, "ev": event, "thr": THRESHOLD})
+        cur.execute(CURRENT_QUERY.format(s="media_ai"), {"q": q, "event_id": event, "thr": THRESHOLD})
         r = cur.fetchall()
         lat.append((time.perf_counter() - t) * 1000); rows.append(len(r))
-    cur.execute("EXPLAIN (ANALYZE, FORMAT JSON) " + PROD_QUERY.format(s="media_ai"), {"q": vlit(qs[0]), "ev": event, "thr": THRESHOLD})
+    cur.execute("EXPLAIN (ANALYZE, FORMAT JSON) " + CURRENT_QUERY.format(s="media_ai"), {"q": vlit(qs[0]), "event_id": event, "thr": THRESHOLD})
     plan = explain_nodes(cur.fetchone()[0][0])
     cur.execute("select count(*) from media_ai.face_embeddings fe join media_ai.event_photos ep using(photo_id) where ep.event_id=%s", (event,))
     n_faces = cur.fetchone()[0]
@@ -518,7 +524,7 @@ def recall(approx, exact):
     return (len(set(approx) & set(exact)) / len(exact)) if exact else 1.0
 
 
-def phase_index(state: dict, n_synth: int, n_events: int, seed: int, n_queries: int, keep: bool) -> dict:
+def phase_index(state: dict, n_synth: int, n_events: int, seed: int, n_queries: int, keep: bool, parts=("prod", "grid")) -> dict:
     log(f"index study: {n_synth} synthetic distractors across {n_events} events (seed {seed})")
     rng = np.random.default_rng(seed)
     conn = connect(); cur = conn.cursor()
@@ -568,15 +574,15 @@ def phase_index(state: dict, n_synth: int, n_events: int, seed: int, n_queries: 
 
     results_by_scenario = {}
 
-    def measure_prod(label, total, evs_q, query=PROD_QUERY):
+    def measure_prod(label, total, evs_q, query=LEGACY_QUERY):
         cur.execute("ANALYZE bench.event_photos"); cur.execute("ANALYZE bench.face_embeddings")
         lat, nrows, res = [], [], []
         for q, ev in zip(qvecs, evs_q):
             t = time.perf_counter()
-            cur.execute(query.format(s="bench"), {"q": vlit(q), "ev": ev, "thr": THRESHOLD})
+            cur.execute(query.format(s="bench"), {"q": vlit(q), "event_id": ev, "thr": THRESHOLD})
             rows = cur.fetchall()
             lat.append((time.perf_counter() - t) * 1000); nrows.append(len(rows)); res.append([str(r[0]) for r in rows])
-        cur.execute("EXPLAIN (ANALYZE, FORMAT JSON) " + query.format(s="bench"), {"q": vlit(qvecs[0]), "ev": evs_q[0], "thr": THRESHOLD})
+        cur.execute("EXPLAIN (ANALYZE, FORMAT JSON) " + query.format(s="bench"), {"q": vlit(qvecs[0]), "event_id": evs_q[0], "thr": THRESHOLD})
         plan = explain_nodes(cur.fetchone()[0][0])
         prod.append({"scenario": label, "faces_in_table": total, "avg_faces_per_event": round(total / (n_events + 1)),
                      "avg_rows_returned": round(statistics.mean(nrows), 2), "latency_ms": stats_ms(lat), "plan": plan})
@@ -596,14 +602,30 @@ def phase_index(state: dict, n_synth: int, n_events: int, seed: int, n_queries: 
         loaded = n_real + target
         load_s = round(time.perf_counter() - t, 1)
         evs_q = [events[i] for i in rng.integers(0, n_events, size=n_q)]
-        base = measure_prod("A. production as-is (no event_id index; IVFFlat built on empty table)", loaded, evs_q)
+        base = measure_prod("A. previous production query, no event_id index (IVFFlat built on empty table)", loaded, evs_q)
         prod[-1]["incremental_load_s"] = load_s
         cur.execute("CREATE INDEX idx_bench_ep_event ON bench.event_photos(event_id)")
         r_b = measure_prod("B. A + plain index on event_photos(event_id), same query", loaded, evs_q)
-        r_c = measure_prod("C. B + event selected first (CTE), exact event-scoped search", loaded, evs_q, EVENT_FIRST_QUERY)
-        prod[-2]["same_results_as_A"] = r_b == base
-        prod[-1]["same_results_as_A"] = r_c == base
+        r_c = measure_prod("C. B + event's photos selected first (CTE only, no LATERAL fence)", loaded, evs_q, EVENT_FIRST_QUERY)
+        r_d = measure_prod("D. CURRENT production query (CTE + LATERAL fence) + event index", loaded, evs_q, CURRENT_QUERY)
+        prod[-3]["same_results_as_A"] = r_b == base
+        prod[-2]["same_results_as_A"] = r_c == base
+        prod[-1]["same_results_as_A"] = r_d == base
+        prod[-1]["non_empty_result_queries"] = sum(1 for r in r_d if r)
+        if target == sizes[-1]:
+            cur.execute("DROP INDEX bench.idx_bench_ivfflat")
+            r_e = measure_prod("E. D with the unused IVFFlat index dropped", loaded, evs_q, CURRENT_QUERY)
+            prod[-1]["same_results_as_D"] = r_e == r_d
     cur.execute("DROP INDEX IF EXISTS bench.idx_bench_ep_event")
+
+    if "grid" not in parts:
+        result = {"SYNTHETIC": "Distractors are perturbed copies of real embeddings (cosine to their source uniform in [0.2, 0.95]), assigned to events at random, fixed seed.",
+                  "seed": seed, "synthetic_faces": n_synth, "real_faces": n_real, "events": n_events + 1, "queries": n_queries,
+                  "production_shaped_tables": prod}
+        if not keep:
+            cur.execute("DROP SCHEMA bench CASCADE")
+        conn.close()
+        return result
 
     # ---------------- B. IVFFlat grid on a denormalised table ----------------
     log("index grid: loading denormalised table")
@@ -729,6 +751,8 @@ def main():
     ap.add_argument("--queries", type=int, default=200, help="queries per index configuration")
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--keep", action="store_true", help="keep the bench schema after the index phase")
+    ap.add_argument("--index-parts", default="prod,grid", help="index phase parts: prod (production-shaped tables), grid (IVFFlat grid)")
+    ap.add_argument("--label", default="", help="suffix for the results file name, e.g. event-first -> results-<date>-event-first.json")
     ap.add_argument("--cleanup", action="store_true", help="delete the bench event (rows and files) at the end of the run")
     ap.add_argument("--out", default=str(ROOT / "docs" / "benchmarks"))
     args = ap.parse_args()
@@ -740,7 +764,7 @@ def main():
 
     OUT_DIR.mkdir(exist_ok=True)
     out = Path(args.out); out.mkdir(parents=True, exist_ok=True)
-    path = out / f"results-{dt.date.today().isoformat()}.json"
+    path = out / f"results-{dt.date.today().isoformat()}{'-' + args.label if args.label else ''}.json"
     ds = Dataset(Path(args.photos))
     phases = args.phases.split(",")
     state = load_state()
@@ -769,7 +793,7 @@ def main():
     if "accuracy" in phases:
         report["accuracy"] = phase_accuracy(ds, state); flush()
     if "index" in phases:
-        report["index_study"] = phase_index(state, args.index_size, args.events, args.seed, args.queries, args.keep); flush()
+        report["index_study"] = phase_index(state, args.index_size, args.events, args.seed, args.queries, args.keep, tuple(args.index_parts.split(','))); flush()
     report["total_run_s"] = round(time.time() - t_start)
 
     if args.cleanup and state.get("event_id"):

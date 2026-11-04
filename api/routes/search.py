@@ -17,6 +17,7 @@ from api.security import (
     validate_image,
 )
 from db.connection import execute_query
+from db.queries import FACE_SEARCH_SQL
 from processing.face import FaceServiceError, UnreadableImageError, extract_face_embedding, get_best_face
 # OCR-DISABLED: BibSearchResponse and BibDetectionResult are only used by the disabled BIB routes.
 from api.models import FaceSearchResponse, PhotoMatch  # , BibSearchResponse, BibDetectionResult
@@ -156,20 +157,8 @@ async def search_by_face(
     query_embedding = get_best_face(faces)["embedding"]
 
     rows = execute_query(
-        """
-        SELECT
-            ep.photo_id,
-            ep.event_id,
-            ep.thumbnail_url IS NOT NULL AS has_thumb,
-            1 - (fe.embedding <=> %s::vector) AS confidence
-        FROM media_ai.face_embeddings fe
-        JOIN media_ai.event_photos ep ON ep.photo_id = fe.photo_id
-        WHERE ep.event_id = %s
-          AND 1 - (fe.embedding <=> %s::vector) >= %s
-        ORDER BY confidence DESC
-        LIMIT 50
-        """,
-        (query_embedding, event_id, query_embedding, MIN_FACE_CONFIDENCE),
+        FACE_SEARCH_SQL,
+        {"event_id": event_id, "q": query_embedding, "thr": MIN_FACE_CONFIDENCE},
         fetch="all",
     )
 
