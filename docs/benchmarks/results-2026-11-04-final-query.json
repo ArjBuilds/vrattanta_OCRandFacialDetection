@@ -1,0 +1,409 @@
+{
+  "phases_run": [
+    "e2e",
+    "index"
+  ],
+  "end_to_end": {
+    "photos": 90,
+    "faces_stored": 177,
+    "processing_errors_logged": 1,
+    "batch_retriggers_needed": 1,
+    "upload_s": 7.7,
+    "batch_s": 73.3,
+    "total_s": 81.0,
+    "upload_photos_per_min": 697.9,
+    "batch_photos_per_min": 73.7,
+    "end_to_end_photos_per_min": 66.7,
+    "face_workers": "2",
+    "note": "upload is sequential, one HTTP request per file, as the portal does; batch starts when the upload ends"
+  },
+  "index_study": {
+    "SYNTHETIC": "Distractors are perturbed copies of real embeddings (cosine to their source uniform in [0.2, 0.95]), assigned to events at random, fixed seed.",
+    "seed": 42,
+    "synthetic_faces": 100000,
+    "real_faces": 177,
+    "events": 201,
+    "queries": 200,
+    "production_shaped_tables": [
+      {
+        "scenario": "A. previous production query, no event_id index (IVFFlat built on empty table)",
+        "faces_in_table": 10177,
+        "avg_faces_per_event": 51,
+        "avg_rows_returned": 0.06,
+        "latency_ms": {
+          "n": 100,
+          "mean": 25.92,
+          "p50": 11.27,
+          "p90": 73.4,
+          "p99": 85.43,
+          "max": 89.41
+        },
+        "plan": {
+          "nodes": [
+            "Limit",
+            "Sort",
+            "Nested Loop",
+            "Seq Scan",
+            "Index Scan"
+          ],
+          "plan_tree": [
+            "Limit",
+            "  Sort",
+            "    Nested Loop",
+            "      Seq Scan on event_photos",
+            "      Index Scan using idx_bench_face_photo on face_embeddings"
+          ],
+          "indexes_used": [
+            "idx_bench_face_photo"
+          ],
+          "execution_ms": 0.675,
+          "planning_ms": 0.097
+        },
+        "incremental_load_s": 4.4
+      },
+      {
+        "scenario": "B. A + plain index on event_photos(event_id), same query",
+        "faces_in_table": 10177,
+        "avg_faces_per_event": 51,
+        "avg_rows_returned": 0.06,
+        "latency_ms": {
+          "n": 100,
+          "mean": 24.0,
+          "p50": 15.52,
+          "p90": 69.75,
+          "p99": 107.6,
+          "max": 172.69
+        },
+        "plan": {
+          "nodes": [
+            "Limit",
+            "Sort",
+            "Nested Loop",
+            "Bitmap Heap Scan",
+            "Bitmap Index Scan",
+            "Index Scan"
+          ],
+          "plan_tree": [
+            "Limit",
+            "  Sort",
+            "    Nested Loop",
+            "      Bitmap Heap Scan on event_photos",
+            "        Bitmap Index Scan using idx_bench_ep_event",
+            "      Index Scan using idx_bench_face_photo on face_embeddings"
+          ],
+          "indexes_used": [
+            "idx_bench_ep_event",
+            "idx_bench_face_photo"
+          ],
+          "execution_ms": 0.247,
+          "planning_ms": 0.101
+        },
+        "same_results_as_A": true
+      },
+      {
+        "scenario": "C. B + event's photos selected first (CTE only, no LATERAL fence)",
+        "faces_in_table": 10177,
+        "avg_faces_per_event": 51,
+        "avg_rows_returned": 0.06,
+        "latency_ms": {
+          "n": 100,
+          "mean": 22.8,
+          "p50": 16.41,
+          "p90": 68.24,
+          "p99": 78.15,
+          "max": 78.62
+        },
+        "plan": {
+          "nodes": [
+            "Limit",
+            "Bitmap Heap Scan",
+            "Bitmap Index Scan",
+            "Sort",
+            "Nested Loop",
+            "CTE Scan",
+            "Index Scan"
+          ],
+          "plan_tree": [
+            "Limit",
+            "  Bitmap Heap Scan on event_photos",
+            "    Bitmap Index Scan using idx_bench_ep_event",
+            "  Sort",
+            "    Nested Loop",
+            "      CTE Scan",
+            "      Index Scan using idx_bench_face_photo on face_embeddings"
+          ],
+          "indexes_used": [
+            "idx_bench_ep_event",
+            "idx_bench_face_photo"
+          ],
+          "execution_ms": 0.29,
+          "planning_ms": 0.075
+        },
+        "same_results_as_A": true
+      },
+      {
+        "scenario": "D. CURRENT production query (CTE + LATERAL fence) + event index",
+        "faces_in_table": 10177,
+        "avg_faces_per_event": 51,
+        "avg_rows_returned": 0.06,
+        "latency_ms": {
+          "n": 100,
+          "mean": 1.78,
+          "p50": 1.21,
+          "p90": 2.19,
+          "p99": 5.78,
+          "max": 33.89
+        },
+        "plan": {
+          "nodes": [
+            "Limit",
+            "Bitmap Heap Scan",
+            "Bitmap Index Scan",
+            "Sort",
+            "Aggregate",
+            "Sort",
+            "Nested Loop",
+            "CTE Scan",
+            "Subquery Scan",
+            "Index Scan"
+          ],
+          "plan_tree": [
+            "Limit",
+            "  Bitmap Heap Scan on event_photos",
+            "    Bitmap Index Scan using idx_bench_ep_event",
+            "  Sort",
+            "    Aggregate",
+            "      Sort",
+            "        Nested Loop",
+            "          CTE Scan",
+            "          Subquery Scan",
+            "            Index Scan using idx_bench_face_photo on face_embeddings"
+          ],
+          "indexes_used": [
+            "idx_bench_ep_event",
+            "idx_bench_face_photo"
+          ],
+          "execution_ms": 0.222,
+          "planning_ms": 0.064
+        },
+        "same_results_as_A": true,
+        "non_empty_result_queries": 6
+      },
+      {
+        "scenario": "A. previous production query, no event_id index (IVFFlat built on empty table)",
+        "faces_in_table": 100177,
+        "avg_faces_per_event": 498,
+        "avg_rows_returned": 0.47,
+        "latency_ms": {
+          "n": 100,
+          "mean": 63.21,
+          "p50": 83.17,
+          "p90": 94.21,
+          "p99": 189.56,
+          "max": 192.77
+        },
+        "plan": {
+          "nodes": [
+            "Limit",
+            "Gather Merge",
+            "Sort",
+            "Nested Loop",
+            "Seq Scan",
+            "Index Scan"
+          ],
+          "plan_tree": [
+            "Limit",
+            "  Gather Merge",
+            "    Sort",
+            "      Nested Loop",
+            "        Seq Scan on event_photos",
+            "        Index Scan using idx_bench_face_photo on face_embeddings"
+          ],
+          "indexes_used": [
+            "idx_bench_face_photo"
+          ],
+          "execution_ms": 13.272,
+          "planning_ms": 0.153
+        },
+        "incremental_load_s": 39.0
+      },
+      {
+        "scenario": "B. A + plain index on event_photos(event_id), same query",
+        "faces_in_table": 100177,
+        "avg_faces_per_event": 498,
+        "avg_rows_returned": 0.47,
+        "latency_ms": {
+          "n": 100,
+          "mean": 604.78,
+          "p50": 589.14,
+          "p90": 730.27,
+          "p99": 879.79,
+          "max": 925.05
+        },
+        "plan": {
+          "nodes": [
+            "Limit",
+            "Sort",
+            "Hash Join",
+            "Seq Scan",
+            "Hash",
+            "Bitmap Heap Scan",
+            "Bitmap Index Scan"
+          ],
+          "plan_tree": [
+            "Limit",
+            "  Sort",
+            "    Hash Join",
+            "      Seq Scan on face_embeddings",
+            "      Hash",
+            "        Bitmap Heap Scan on event_photos",
+            "          Bitmap Index Scan using idx_bench_ep_event"
+          ],
+          "indexes_used": [
+            "idx_bench_ep_event"
+          ],
+          "execution_ms": 612.514,
+          "planning_ms": 0.341
+        },
+        "same_results_as_A": true
+      },
+      {
+        "scenario": "C. B + event's photos selected first (CTE only, no LATERAL fence)",
+        "faces_in_table": 100177,
+        "avg_faces_per_event": 498,
+        "avg_rows_returned": 0.47,
+        "latency_ms": {
+          "n": 100,
+          "mean": 41.92,
+          "p50": 7.59,
+          "p90": 52.1,
+          "p99": 681.49,
+          "max": 720.9
+        },
+        "plan": {
+          "nodes": [
+            "Limit",
+            "Bitmap Heap Scan",
+            "Bitmap Index Scan",
+            "Sort",
+            "Nested Loop",
+            "CTE Scan",
+            "Index Scan"
+          ],
+          "plan_tree": [
+            "Limit",
+            "  Bitmap Heap Scan on event_photos",
+            "    Bitmap Index Scan using idx_bench_ep_event",
+            "  Sort",
+            "    Nested Loop",
+            "      CTE Scan",
+            "      Index Scan using idx_bench_face_photo on face_embeddings"
+          ],
+          "indexes_used": [
+            "idx_bench_ep_event",
+            "idx_bench_face_photo"
+          ],
+          "execution_ms": 2.332,
+          "planning_ms": 0.073
+        },
+        "same_results_as_A": true
+      },
+      {
+        "scenario": "D. CURRENT production query (CTE + LATERAL fence) + event index",
+        "faces_in_table": 100177,
+        "avg_faces_per_event": 498,
+        "avg_rows_returned": 0.47,
+        "latency_ms": {
+          "n": 100,
+          "mean": 12.95,
+          "p50": 8.19,
+          "p90": 46.95,
+          "p99": 50.92,
+          "max": 52.02
+        },
+        "plan": {
+          "nodes": [
+            "Limit",
+            "Bitmap Heap Scan",
+            "Bitmap Index Scan",
+            "Sort",
+            "Aggregate",
+            "Sort",
+            "Nested Loop",
+            "CTE Scan",
+            "Subquery Scan",
+            "Index Scan"
+          ],
+          "plan_tree": [
+            "Limit",
+            "  Bitmap Heap Scan on event_photos",
+            "    Bitmap Index Scan using idx_bench_ep_event",
+            "  Sort",
+            "    Aggregate",
+            "      Sort",
+            "        Nested Loop",
+            "          CTE Scan",
+            "          Subquery Scan",
+            "            Index Scan using idx_bench_face_photo on face_embeddings"
+          ],
+          "indexes_used": [
+            "idx_bench_ep_event",
+            "idx_bench_face_photo"
+          ],
+          "execution_ms": 5.863,
+          "planning_ms": 0.173
+        },
+        "same_results_as_A": true,
+        "non_empty_result_queries": 34
+      },
+      {
+        "scenario": "E. D with the unused IVFFlat index dropped",
+        "faces_in_table": 100177,
+        "avg_faces_per_event": 498,
+        "avg_rows_returned": 0.47,
+        "latency_ms": {
+          "n": 100,
+          "mean": 13.7,
+          "p50": 8.54,
+          "p90": 48.24,
+          "p99": 52.3,
+          "max": 53.71
+        },
+        "plan": {
+          "nodes": [
+            "Limit",
+            "Bitmap Heap Scan",
+            "Bitmap Index Scan",
+            "Sort",
+            "Aggregate",
+            "Sort",
+            "Nested Loop",
+            "CTE Scan",
+            "Subquery Scan",
+            "Index Scan"
+          ],
+          "plan_tree": [
+            "Limit",
+            "  Bitmap Heap Scan on event_photos",
+            "    Bitmap Index Scan using idx_bench_ep_event",
+            "  Sort",
+            "    Aggregate",
+            "      Sort",
+            "        Nested Loop",
+            "          CTE Scan",
+            "          Subquery Scan",
+            "            Index Scan using idx_bench_face_photo on face_embeddings"
+          ],
+          "indexes_used": [
+            "idx_bench_ep_event",
+            "idx_bench_face_photo"
+          ],
+          "execution_ms": 5.705,
+          "planning_ms": 0.166
+        },
+        "same_results_as_D": true
+      }
+    ]
+  },
+  "total_run_s": 211
+}

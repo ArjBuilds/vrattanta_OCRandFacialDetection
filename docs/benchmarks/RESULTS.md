@@ -7,6 +7,11 @@ Run date 2026-11-04, one full run of [`bench/benchmark.py`](../../bench/benchmar
 CPU caps below, so these are *relative* numbers for comparing settings. They are not production capacity.
 Each measurement is a single run (no repeats), so differences of a few tens of percent are not reliable.
 
+> **Status.** This page records the first full run (sections 1 to 5) and, in section 6, the measurements taken after the
+> changes it led to: an event-scoped search query with an `event_photos(event_id)` index, one result per photo,
+> the default threshold moved from 0.75 to 0.70, and the unused IVFFlat index dropped. Sections 1 to 5 describe the
+> code and settings *as they were at that run*.
+
 ## Setup
 
 | | |
@@ -217,7 +222,9 @@ the recall at `probes = 1` is 0.20 to 0.41 and at `probes = 1` most queries come
 
 On the same data, the index built after loading (5b, `lists = 100`) has recall 1.00 at `probes = 1`.
 
-## Findings and options (nothing below has been applied)
+## Findings and options from the first run
+
+Status: items 2, 3 and 5 were applied afterwards, together with the duplicate-photo fix and the threshold change; see section 6.
 
 1. **Today's query does not use the vector index.** At 100k faces it takes about 80 ms p50 and relies on a
    parallel nested loop; it has no plain index on `event_photos(event_id)`.
@@ -235,6 +242,48 @@ On the same data, the index built after loading (5b, `lists = 100`) has recall 1
    0.75 threshold 60% of a person's LFW photos were not returned while a lower threshold produced no false
    matches in this small set; a search that matches two faces of the same photo returns that photo twice
    (checked in an ad-hoc test that is not committed, not part of this run).
+
+## 6. After the changes (follow-up runs, same synthetic data and seed)
+
+Each change was its own commit: (1) event-scoped query plus the `event_photos(event_id)` index, (2) one result per photo,
+(3) default threshold 0.70 (section 4b), (4) the IVFFlat index dropped. Raw numbers:
+[`results-2026-11-04-event-first.json`](results-2026-11-04-event-first.json) (after change 1) and
+[`results-2026-11-04-final-query.json`](results-2026-11-04-final-query.json) (the query as shipped, after all four).
+
+### 6a. The production query, 100 queries per row, same synthetic tables as section 5a
+
+| Faces in table | Scenario | p50 | p90 | p99 |
+|---|---|---|---|---|
+| 10,177 | A. previous query, no event index | 11.3 ms | 73.4 ms | 85.4 ms |
+| 10,177 | B. A + `event_photos(event_id)` index, same query | 15.5 ms | 69.8 ms | 107.6 ms |
+| 10,177 | C. B + event's photos in a CTE (no `LATERAL`) | 16.4 ms | 68.2 ms | 78.2 ms |
+| 10,177 | **D. current query (CTE + `LATERAL`, one row per photo) + index** | **1.2 ms** | 2.2 ms | **5.8 ms** |
+| 100,177 | A. previous query, no event index | 83.2 ms | 94.2 ms | 189.6 ms |
+| 100,177 | B. A + index, same query | **589 ms** | 730 ms | 880 ms |
+| 100,177 | C. B + CTE only | 7.6 ms | 52.1 ms | **681 ms** |
+| 100,177 | **D. current query + index** | **8.2 ms** | 47.0 ms | **50.9 ms** |
+| 100,177 | E. D with the IVFFlat index dropped | 8.5 ms | 48.2 ms | 52.3 ms |
+
+* **D is about 10x faster than A at the median (83 ms to 8.2 ms) and about 4x at p99 (190 ms to 51 ms)** at 100k
+  faces, and it is exact (no approximate index).
+* **The index alone (B) is 7x slower than A.** The planner computes the similarity for every face. A CTE alone (C)
+  is fast at the median but has a 681 ms p99 here, and in tests at 30,000 to 60,000 photos it still produced the
+  hash join over every face. The `LATERAL ... OFFSET 0` fence in `db/queries.py` makes the order explicit
+  (event's photos, then each photo's faces through `idx_face_embeddings_photo_id`); `tests/test_search_query.py`
+  checks the plan at 10,000 and 60,000 photos.
+* **Same answers:** B, C and D returned exactly the same photos as A for all 100 queries at both sizes (6 of the 100
+  queries return rows at 10k and 34 at 100k).
+* **The IVFFlat index changes nothing (E vs D):** identical results, 8.5 ms vs 8.2 ms p50, 52 ms vs 51 ms p99, so it
+  was removed from the schema.
+* Caveats: one run per row, p99 over 100 queries; the first follow-up run measured D at 7.5 ms p50 / 81 ms p99, which
+  shows the run-to-run spread to expect. The synthetic photos carry one face each, so the benchmark does not exercise
+  the one-row-per-photo grouping; the unit tests do.
+
+### 6b. End to end
+
+Three later reruns of the upload-to-processed phase measured 57.9, 61.2 and 66.7 photos/min (first run: 62.7). Each of
+the three needed one batch retrigger after CompreFace returned a transient "connection reset" for one photo; the error
+was logged and the photo retried, as designed. The cause of the resets was not investigated.
 
 ## Data sources
 
