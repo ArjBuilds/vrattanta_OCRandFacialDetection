@@ -1,0 +1,1262 @@
+{
+  "phases_run": [
+    "accuracy",
+    "e2e",
+    "env",
+    "index",
+    "search",
+    "throughput"
+  ],
+  "environment": {
+    "date": "2026-11-04",
+    "host": {
+      "os": "Windows-10-10.0.26300-SP0",
+      "cpu": "13th Gen Intel(R) Core(TM) i7-13650HX",
+      "physical_cores": 14,
+      "logical_cpus": 20,
+      "ram_gib": 23.7
+    },
+    "docker": {
+      "server_version": "29.9.2",
+      "compose_version": "5.6.1",
+      "vm_cpus": "20",
+      "vm_memory_gib": 11.5
+    },
+    "compose_caps_in_effect": {
+      "media_ai_api": {
+        "cpus": 0.6,
+        "memory_mib": 2300
+      },
+      "media_ai_db": {
+        "cpus": 0.5,
+        "memory_mib": 1024
+      },
+      "compreface_core": {
+        "cpus": 1.0,
+        "memory_mib": 3072
+      },
+      "compreface_api": {
+        "cpus": 0.4,
+        "memory_mib": 768
+      },
+      "compreface_admin": {
+        "cpus": 0.15,
+        "memory_mib": 512
+      },
+      "compreface_ui": {
+        "cpus": 0.1,
+        "memory_mib": 128
+      },
+      "compreface_db": {
+        "cpus": 0.25,
+        "memory_mib": 256
+      }
+    },
+    "settings": {
+      "FACE_WORKERS": "2",
+      "UWSGI_PROCESSES": "2",
+      "UWSGI_THREADS": "1",
+      "postgres_shared_buffers": "128MB",
+      "postgres_work_mem": "4MB",
+      "postgres_maintenance_work_mem": "64MB",
+      "match_threshold": 0.75,
+      "postgres": "15.4 (Debian 15.4-2.pgdg120+1)",
+      "pgvector": "0.5.1"
+    },
+    "dataset": {
+      "event_photos": 90,
+      "rbnr_race_photos": 60,
+      "lfw_labelled_photos": 30,
+      "lfw_people_in_event": 10,
+      "selfies": 11,
+      "fingerprint_sha256_16": {
+        "rbnr": "b772d050e9fc9cdb",
+        "lfw": "db2d69d7fc5edc84",
+        "selfies": "959d8d85e265611a"
+      }
+    },
+    "notes": "Client runs on the host; db and CompreFace run in Docker (WSL2) under the caps above, so numbers are relative, not production capacity."
+  },
+  "embedding_throughput": {
+    "workers_1": {
+      "photos": 90,
+      "calls_ok": 90,
+      "calls_failed": 0,
+      "errors": {},
+      "faces": 177,
+      "wall_s": 58.82,
+      "compreface_calls_per_s": 1.53,
+      "faces_per_s": 3.01,
+      "call_latency_ms": {
+        "n": 90,
+        "mean": 653.45,
+        "p50": 486.49,
+        "p90": 1179.57,
+        "p99": 2812.67,
+        "max": 4396.9
+      },
+      "detection_by_group": {
+        "lfw": {
+          "photos": 30,
+          "with_face": 30,
+          "faces": 31
+        },
+        "rbnr": {
+          "photos": 60,
+          "with_face": 59,
+          "faces": 146
+        }
+      }
+    },
+    "workers_2": {
+      "photos": 90,
+      "calls_ok": 90,
+      "calls_failed": 0,
+      "errors": {},
+      "faces": 177,
+      "wall_s": 74.38,
+      "compreface_calls_per_s": 1.21,
+      "faces_per_s": 2.38,
+      "call_latency_ms": {
+        "n": 90,
+        "mean": 1652.53,
+        "p50": 1394.4,
+        "p90": 2690.69,
+        "p99": 5971.02,
+        "max": 10619.66
+      },
+      "detection_by_group": {
+        "lfw": {
+          "photos": 30,
+          "with_face": 30,
+          "faces": 31
+        },
+        "rbnr": {
+          "photos": 60,
+          "with_face": 59,
+          "faces": 146
+        }
+      }
+    },
+    "workers_4": {
+      "photos": 90,
+      "calls_ok": 90,
+      "calls_failed": 0,
+      "errors": {},
+      "faces": 177,
+      "wall_s": 80.9,
+      "compreface_calls_per_s": 1.11,
+      "faces_per_s": 2.19,
+      "call_latency_ms": {
+        "n": 90,
+        "mean": 3573.69,
+        "p50": 2803.2,
+        "p90": 6302.34,
+        "p99": 13421.43,
+        "max": 15233.97
+      },
+      "detection_by_group": {
+        "lfw": {
+          "photos": 30,
+          "with_face": 30,
+          "faces": 31
+        },
+        "rbnr": {
+          "photos": 60,
+          "with_face": 59,
+          "faces": 146
+        }
+      }
+    }
+  },
+  "end_to_end": {
+    "photos": 90,
+    "faces_stored": 177,
+    "processing_errors_logged": 0,
+    "batch_retriggers_needed": 0,
+    "upload_s": 9.8,
+    "batch_s": 76.4,
+    "total_s": 86.1,
+    "upload_photos_per_min": 551.4,
+    "batch_photos_per_min": 70.7,
+    "end_to_end_photos_per_min": 62.7,
+    "face_workers": "2",
+    "note": "upload is sequential, one HTTP request per file, as the portal does; batch starts when the upload ends"
+  },
+  "search_latency": {
+    "http": {
+      "sequential": {
+        "requests": 150,
+        "status_codes": {
+          "200": 150
+        },
+        "latency_ms": {
+          "n": 150,
+          "mean": 371.6,
+          "p50": 392.63,
+          "p90": 485.78,
+          "p99": 700.37,
+          "max": 710.88
+        }
+      },
+      "concurrent_4_clients": {
+        "requests": 100,
+        "status_codes": {
+          "200": 100
+        },
+        "latency_ms": {
+          "n": 100,
+          "mean": 1417.91,
+          "p50": 1195.2,
+          "p90": 2295.04,
+          "p99": 2479.47,
+          "max": 2586.33
+        },
+        "throughput_req_per_s": 2.78
+      },
+      "includes": "multipart upload, image validation, one CompreFace call, consent insert, vector query, URL signing"
+    },
+    "sql_only": {
+      "queries": 300,
+      "faces_in_event": 177,
+      "avg_rows_returned": 1.09,
+      "latency_ms": {
+        "n": 300,
+        "mean": 1.64,
+        "p50": 1.53,
+        "p90": 2.05,
+        "p99": 2.88,
+        "max": 6.52
+      },
+      "plan": {
+        "nodes": [
+          "Limit",
+          "Sort",
+          "Hash Join",
+          "Seq Scan",
+          "Hash",
+          "Seq Scan"
+        ],
+        "plan_tree": [
+          "Limit",
+          "  Sort",
+          "    Hash Join",
+          "      Seq Scan on face_embeddings",
+          "      Hash",
+          "        Seq Scan on event_photos"
+        ],
+        "indexes_used": [],
+        "execution_ms": 0.667,
+        "planning_ms": 0.124
+      },
+      "note": "client-side time on localhost including round trip; tiny table, see the index study for scale"
+    }
+  },
+  "accuracy": {
+    "scope": "ranking and counts use only the labelled LFW photos in the event; RBNR photos are excluded from every accuracy number. LFW images are 250x250 and are NOT race photos.",
+    "queries": 10,
+    "labelled_photos": 30,
+    "photos_per_person": [
+      3
+    ],
+    "top1_accuracy": "10/10",
+    "top5_accuracy": "10/10",
+    "at_threshold": {
+      "threshold": 0.75,
+      "true_matches": "12/30",
+      "false_matches_other_labelled_person": "0/270"
+    },
+    "per_person": [
+      {
+        "person": "c644608d",
+        "own_photos": 3,
+        "found_at_threshold": 3
+      },
+      {
+        "person": "2219bc1e",
+        "own_photos": 3,
+        "found_at_threshold": 1
+      },
+      {
+        "person": "bd65cbff",
+        "own_photos": 3,
+        "found_at_threshold": 0
+      },
+      {
+        "person": "89d7a8f7",
+        "own_photos": 3,
+        "found_at_threshold": 0
+      },
+      {
+        "person": "5e4a9d17",
+        "own_photos": 3,
+        "found_at_threshold": 0
+      },
+      {
+        "person": "feb00282",
+        "own_photos": 3,
+        "found_at_threshold": 0
+      },
+      {
+        "person": "6b4f4210",
+        "own_photos": 3,
+        "found_at_threshold": 3
+      },
+      {
+        "person": "ab06d820",
+        "own_photos": 3,
+        "found_at_threshold": 1
+      },
+      {
+        "person": "a228db50",
+        "own_photos": 3,
+        "found_at_threshold": 2
+      },
+      {
+        "person": "6394f681",
+        "own_photos": 3,
+        "found_at_threshold": 2
+      }
+    ],
+    "out_of_set": {
+      "people": 1,
+      "results": [
+        {
+          "labelled_photos_at_or_above_threshold": 0,
+          "max_similarity_to_labelled_photo": 0.2556,
+          "max_similarity_to_any_photo": 0.4509
+        }
+      ],
+      "pairs_at_or_above_threshold": 0,
+      "pairs": 30
+    },
+    "similarity": {
+      "genuine": {
+        "n": 30,
+        "min": 0.2802,
+        "p25": 0.633,
+        "median": 0.7198,
+        "max": 0.9094
+      },
+      "impostor": {
+        "n": 300,
+        "median": 0.0599,
+        "p95": 0.2981,
+        "p99": 0.3933,
+        "max": 0.4778
+      }
+    },
+    "threshold_table": [
+      {
+        "threshold": 0.5,
+        "genuine_pairs_found": "28/30",
+        "impostor_pairs_matched": "0/300"
+      },
+      {
+        "threshold": 0.55,
+        "genuine_pairs_found": "24/30",
+        "impostor_pairs_matched": "0/300"
+      },
+      {
+        "threshold": 0.6,
+        "genuine_pairs_found": "23/30",
+        "impostor_pairs_matched": "0/300"
+      },
+      {
+        "threshold": 0.65,
+        "genuine_pairs_found": "22/30",
+        "impostor_pairs_matched": "0/300"
+      },
+      {
+        "threshold": 0.7,
+        "genuine_pairs_found": "18/30",
+        "impostor_pairs_matched": "0/300"
+      },
+      {
+        "threshold": 0.75,
+        "genuine_pairs_found": "12/30",
+        "impostor_pairs_matched": "0/300"
+      },
+      {
+        "threshold": 0.8,
+        "genuine_pairs_found": "7/30",
+        "impostor_pairs_matched": "0/300"
+      },
+      {
+        "threshold": 0.85,
+        "genuine_pairs_found": "4/30",
+        "impostor_pairs_matched": "0/300"
+      }
+    ],
+    "face_detection": {
+      "lfw": {
+        "photos": 30,
+        "with_face": 30,
+        "faces": 31
+      },
+      "rbnr": {
+        "photos": 60,
+        "with_face": 59,
+        "faces": 146
+      }
+    }
+  },
+  "index_study": {
+    "SYNTHETIC": "Distractors are perturbed copies of real embeddings (cosine to their source uniform in [0.2, 0.95]), assigned to events at random, fixed seed. Absolute numbers depend on this construction.",
+    "seed": 42,
+    "synthetic_faces": 100000,
+    "real_faces": 177,
+    "events": 201,
+    "queries": 200,
+    "production_shaped_tables": [
+      {
+        "scenario": "A. production as-is (no event_id index; IVFFlat built on empty table)",
+        "faces_in_table": 10177,
+        "avg_faces_per_event": 51,
+        "avg_rows_returned": 0.05,
+        "latency_ms": {
+          "n": 100,
+          "mean": 23.42,
+          "p50": 16.64,
+          "p90": 72.07,
+          "p99": 87.93,
+          "max": 88.12
+        },
+        "plan": {
+          "nodes": [
+            "Limit",
+            "Sort",
+            "Nested Loop",
+            "Seq Scan",
+            "Index Scan"
+          ],
+          "plan_tree": [
+            "Limit",
+            "  Sort",
+            "    Nested Loop",
+            "      Seq Scan on event_photos",
+            "      Index Scan using idx_bench_face_photo on face_embeddings"
+          ],
+          "indexes_used": [
+            "idx_bench_face_photo"
+          ],
+          "execution_ms": 1.104,
+          "planning_ms": 0.196
+        },
+        "incremental_load_s": 10.8
+      },
+      {
+        "scenario": "B. A + plain index on event_photos(event_id), same query",
+        "faces_in_table": 10177,
+        "avg_faces_per_event": 51,
+        "avg_rows_returned": 0.05,
+        "latency_ms": {
+          "n": 100,
+          "mean": 25.46,
+          "p50": 16.99,
+          "p90": 72.51,
+          "p99": 84.02,
+          "max": 98.6
+        },
+        "plan": {
+          "nodes": [
+            "Limit",
+            "Sort",
+            "Nested Loop",
+            "Bitmap Heap Scan",
+            "Bitmap Index Scan",
+            "Index Scan"
+          ],
+          "plan_tree": [
+            "Limit",
+            "  Sort",
+            "    Nested Loop",
+            "      Bitmap Heap Scan on event_photos",
+            "        Bitmap Index Scan using idx_bench_ep_event",
+            "      Index Scan using idx_bench_face_photo on face_embeddings"
+          ],
+          "indexes_used": [
+            "idx_bench_ep_event",
+            "idx_bench_face_photo"
+          ],
+          "execution_ms": 0.204,
+          "planning_ms": 0.088
+        },
+        "same_results_as_A": true
+      },
+      {
+        "scenario": "C. B + event selected first (CTE), exact event-scoped search",
+        "faces_in_table": 10177,
+        "avg_faces_per_event": 51,
+        "avg_rows_returned": 0.05,
+        "latency_ms": {
+          "n": 100,
+          "mean": 24.63,
+          "p50": 10.13,
+          "p90": 73.87,
+          "p99": 79.14,
+          "max": 84.36
+        },
+        "plan": {
+          "nodes": [
+            "Limit",
+            "Bitmap Heap Scan",
+            "Bitmap Index Scan",
+            "Sort",
+            "Nested Loop",
+            "CTE Scan",
+            "Index Scan"
+          ],
+          "plan_tree": [
+            "Limit",
+            "  Bitmap Heap Scan on event_photos",
+            "    Bitmap Index Scan using idx_bench_ep_event",
+            "  Sort",
+            "    Nested Loop",
+            "      CTE Scan",
+            "      Index Scan using idx_bench_face_photo on face_embeddings"
+          ],
+          "indexes_used": [
+            "idx_bench_ep_event",
+            "idx_bench_face_photo"
+          ],
+          "execution_ms": 0.511,
+          "planning_ms": 0.155
+        },
+        "same_results_as_A": true
+      },
+      {
+        "scenario": "A. production as-is (no event_id index; IVFFlat built on empty table)",
+        "faces_in_table": 100177,
+        "avg_faces_per_event": 498,
+        "avg_rows_returned": 0.35,
+        "latency_ms": {
+          "n": 100,
+          "mean": 72.91,
+          "p50": 79.92,
+          "p90": 100.61,
+          "p99": 164.49,
+          "max": 199.14
+        },
+        "plan": {
+          "nodes": [
+            "Limit",
+            "Gather Merge",
+            "Sort",
+            "Nested Loop",
+            "Seq Scan",
+            "Index Scan"
+          ],
+          "plan_tree": [
+            "Limit",
+            "  Gather Merge",
+            "    Sort",
+            "      Nested Loop",
+            "        Seq Scan on event_photos",
+            "        Index Scan using idx_bench_face_photo on face_embeddings"
+          ],
+          "indexes_used": [
+            "idx_bench_face_photo"
+          ],
+          "execution_ms": 74.228,
+          "planning_ms": 0.213
+        },
+        "incremental_load_s": 104.0
+      },
+      {
+        "scenario": "B. A + plain index on event_photos(event_id), same query",
+        "faces_in_table": 100177,
+        "avg_faces_per_event": 498,
+        "avg_rows_returned": 0.35,
+        "latency_ms": {
+          "n": 100,
+          "mean": 625.2,
+          "p50": 603.52,
+          "p90": 707.38,
+          "p99": 903.59,
+          "max": 1102.43
+        },
+        "plan": {
+          "nodes": [
+            "Limit",
+            "Sort",
+            "Hash Join",
+            "Seq Scan",
+            "Hash",
+            "Bitmap Heap Scan",
+            "Bitmap Index Scan"
+          ],
+          "plan_tree": [
+            "Limit",
+            "  Sort",
+            "    Hash Join",
+            "      Seq Scan on face_embeddings",
+            "      Hash",
+            "        Bitmap Heap Scan on event_photos",
+            "          Bitmap Index Scan using idx_bench_ep_event"
+          ],
+          "indexes_used": [
+            "idx_bench_ep_event"
+          ],
+          "execution_ms": 634.078,
+          "planning_ms": 0.338
+        },
+        "same_results_as_A": true
+      },
+      {
+        "scenario": "C. B + event selected first (CTE), exact event-scoped search",
+        "faces_in_table": 100177,
+        "avg_faces_per_event": 498,
+        "avg_rows_returned": 0.35,
+        "latency_ms": {
+          "n": 100,
+          "mean": 62.03,
+          "p50": 9.64,
+          "p90": 60.11,
+          "p99": 712.53,
+          "max": 730.77
+        },
+        "plan": {
+          "nodes": [
+            "Limit",
+            "Bitmap Heap Scan",
+            "Bitmap Index Scan",
+            "Sort",
+            "Nested Loop",
+            "CTE Scan",
+            "Index Scan"
+          ],
+          "plan_tree": [
+            "Limit",
+            "  Bitmap Heap Scan on event_photos",
+            "    Bitmap Index Scan using idx_bench_ep_event",
+            "  Sort",
+            "    Nested Loop",
+            "      CTE Scan",
+            "      Index Scan using idx_bench_face_photo on face_embeddings"
+          ],
+          "indexes_used": [
+            "idx_bench_ep_event",
+            "idx_bench_face_photo"
+          ],
+          "execution_ms": 54.763,
+          "planning_ms": 0.088
+        },
+        "same_results_as_A": true
+      }
+    ],
+    "exact_baseline": {
+      "rows": 100177,
+      "unfiltered_seq_scan_ms": {
+        "n": 200,
+        "mean": 619.61,
+        "p50": 600.64,
+        "p90": 726.87,
+        "p99": 908.27,
+        "max": 985.58
+      },
+      "event_filtered_seq_scan_ms": {
+        "n": 200,
+        "mean": 23.21,
+        "p50": 11.51,
+        "p90": 62.91,
+        "p99": 81.82,
+        "max": 89.33
+      },
+      "avg_rows_in_event": 498,
+      "event_filtered_btree_exact_ms": {
+        "n": 200,
+        "mean": 7.86,
+        "p50": 5.95,
+        "p90": 7.58,
+        "p99": 39.29,
+        "max": 40.89
+      }
+    },
+    "ivfflat_grid": [
+      {
+        "index": "IVFFlat built after load",
+        "lists": 100,
+        "probes": 1,
+        "index_used_for_filtered_query": true,
+        "build_s": 7.6,
+        "unfiltered": {
+          "recall_at_10": 1.0,
+          "queries_returning_fewer_than_exact": 0,
+          "latency_ms": {
+            "n": 200,
+            "mean": 5.09,
+            "p50": 3.81,
+            "p90": 9.03,
+            "p99": 24.91,
+            "max": 25.87
+          }
+        },
+        "event_filtered": {
+          "recall_at_10": 0.412,
+          "queries_returning_fewer_than_exact": 128,
+          "latency_ms": {
+            "n": 200,
+            "mean": 4.48,
+            "p50": 3.54,
+            "p90": 5.71,
+            "p99": 24.97,
+            "max": 33.21
+          }
+        }
+      },
+      {
+        "index": "IVFFlat built after load",
+        "lists": 100,
+        "probes": 2,
+        "index_used_for_filtered_query": true,
+        "build_s": 7.6,
+        "unfiltered": {
+          "recall_at_10": 1.0,
+          "queries_returning_fewer_than_exact": 0,
+          "latency_ms": {
+            "n": 200,
+            "mean": 6.91,
+            "p50": 4.97,
+            "p90": 8.59,
+            "p99": 35.07,
+            "max": 38.05
+          }
+        },
+        "event_filtered": {
+          "recall_at_10": 0.566,
+          "queries_returning_fewer_than_exact": 53,
+          "latency_ms": {
+            "n": 200,
+            "mean": 10.36,
+            "p50": 6.46,
+            "p90": 27.7,
+            "p99": 64.05,
+            "max": 71.66
+          }
+        }
+      },
+      {
+        "index": "IVFFlat built after load",
+        "lists": 100,
+        "probes": 4,
+        "index_used_for_filtered_query": true,
+        "build_s": 7.6,
+        "unfiltered": {
+          "recall_at_10": 1.0,
+          "queries_returning_fewer_than_exact": 0,
+          "latency_ms": {
+            "n": 200,
+            "mean": 10.05,
+            "p50": 6.55,
+            "p90": 26.54,
+            "p99": 45.8,
+            "max": 46.92
+          }
+        },
+        "event_filtered": {
+          "recall_at_10": 0.719,
+          "queries_returning_fewer_than_exact": 4,
+          "latency_ms": {
+            "n": 200,
+            "mean": 12.3,
+            "p50": 7.3,
+            "p90": 44.67,
+            "p99": 50.21,
+            "max": 51.7
+          }
+        }
+      },
+      {
+        "index": "IVFFlat built after load",
+        "lists": 100,
+        "probes": 8,
+        "index_used_for_filtered_query": true,
+        "build_s": 7.6,
+        "unfiltered": {
+          "recall_at_10": 1.0,
+          "queries_returning_fewer_than_exact": 0,
+          "latency_ms": {
+            "n": 200,
+            "mean": 19.92,
+            "p50": 11.74,
+            "p90": 56.06,
+            "p99": 68.93,
+            "max": 87.82
+          }
+        },
+        "event_filtered": {
+          "recall_at_10": 0.845,
+          "queries_returning_fewer_than_exact": 0,
+          "latency_ms": {
+            "n": 200,
+            "mean": 22.68,
+            "p50": 13.6,
+            "p90": 58.62,
+            "p99": 75.18,
+            "max": 83.25
+          }
+        }
+      },
+      {
+        "index": "IVFFlat built after load",
+        "lists": 100,
+        "probes": 16,
+        "index_used_for_filtered_query": true,
+        "build_s": 7.6,
+        "unfiltered": {
+          "recall_at_10": 1.0,
+          "queries_returning_fewer_than_exact": 0,
+          "latency_ms": {
+            "n": 200,
+            "mean": 35.49,
+            "p50": 20.36,
+            "p90": 71.81,
+            "p99": 84.92,
+            "max": 187.52
+          }
+        },
+        "event_filtered": {
+          "recall_at_10": 0.94,
+          "queries_returning_fewer_than_exact": 0,
+          "latency_ms": {
+            "n": 200,
+            "mean": 38.76,
+            "p50": 23.12,
+            "p90": 74.13,
+            "p99": 88.26,
+            "max": 181.1
+          }
+        }
+      },
+      {
+        "index": "IVFFlat built after load",
+        "lists": 100,
+        "probes": 32,
+        "index_used_for_filtered_query": true,
+        "build_s": 7.6,
+        "unfiltered": {
+          "recall_at_10": 1.0,
+          "queries_returning_fewer_than_exact": 0,
+          "latency_ms": {
+            "n": 200,
+            "mean": 64.14,
+            "p50": 78.02,
+            "p90": 91.82,
+            "p99": 114.4,
+            "max": 197.09
+          }
+        },
+        "event_filtered": {
+          "recall_at_10": 0.99,
+          "queries_returning_fewer_than_exact": 0,
+          "latency_ms": {
+            "n": 200,
+            "mean": 69.79,
+            "p50": 82.3,
+            "p90": 95.74,
+            "p99": 112.11,
+            "max": 208.29
+          }
+        }
+      },
+      {
+        "index": "IVFFlat built after load",
+        "lists": 317,
+        "probes": 1,
+        "index_used_for_filtered_query": true,
+        "build_s": 12.9,
+        "unfiltered": {
+          "recall_at_10": 1.0,
+          "queries_returning_fewer_than_exact": 0,
+          "latency_ms": {
+            "n": 200,
+            "mean": 4.4,
+            "p50": 2.85,
+            "p90": 5.59,
+            "p99": 31.62,
+            "max": 46.64
+          }
+        },
+        "event_filtered": {
+          "recall_at_10": 0.279,
+          "queries_returning_fewer_than_exact": 189,
+          "latency_ms": {
+            "n": 200,
+            "mean": 2.73,
+            "p50": 2.59,
+            "p90": 3.69,
+            "p99": 4.65,
+            "max": 5.82
+          }
+        }
+      },
+      {
+        "index": "IVFFlat built after load",
+        "lists": 317,
+        "probes": 2,
+        "index_used_for_filtered_query": true,
+        "build_s": 12.9,
+        "unfiltered": {
+          "recall_at_10": 1.0,
+          "queries_returning_fewer_than_exact": 0,
+          "latency_ms": {
+            "n": 200,
+            "mean": 3.27,
+            "p50": 2.85,
+            "p90": 3.86,
+            "p99": 20.71,
+            "max": 23.04
+          }
+        },
+        "event_filtered": {
+          "recall_at_10": 0.417,
+          "queries_returning_fewer_than_exact": 149,
+          "latency_ms": {
+            "n": 200,
+            "mean": 3.87,
+            "p50": 3.37,
+            "p90": 4.83,
+            "p99": 16.92,
+            "max": 27.0
+          }
+        }
+      },
+      {
+        "index": "IVFFlat built after load",
+        "lists": 317,
+        "probes": 4,
+        "index_used_for_filtered_query": true,
+        "build_s": 12.9,
+        "unfiltered": {
+          "recall_at_10": 1.0,
+          "queries_returning_fewer_than_exact": 0,
+          "latency_ms": {
+            "n": 200,
+            "mean": 4.66,
+            "p50": 3.58,
+            "p90": 6.07,
+            "p99": 24.12,
+            "max": 28.13
+          }
+        },
+        "event_filtered": {
+          "recall_at_10": 0.585,
+          "queries_returning_fewer_than_exact": 60,
+          "latency_ms": {
+            "n": 200,
+            "mean": 5.99,
+            "p50": 4.02,
+            "p90": 6.78,
+            "p99": 35.83,
+            "max": 40.64
+          }
+        }
+      },
+      {
+        "index": "IVFFlat built after load",
+        "lists": 317,
+        "probes": 8,
+        "index_used_for_filtered_query": true,
+        "build_s": 12.9,
+        "unfiltered": {
+          "recall_at_10": 1.0,
+          "queries_returning_fewer_than_exact": 0,
+          "latency_ms": {
+            "n": 200,
+            "mean": 10.48,
+            "p50": 6.79,
+            "p90": 25.19,
+            "p99": 63.89,
+            "max": 80.41
+          }
+        },
+        "event_filtered": {
+          "recall_at_10": 0.794,
+          "queries_returning_fewer_than_exact": 2,
+          "latency_ms": {
+            "n": 200,
+            "mean": 11.53,
+            "p50": 7.5,
+            "p90": 39.45,
+            "p99": 46.59,
+            "max": 56.11
+          }
+        }
+      },
+      {
+        "index": "IVFFlat built after load",
+        "lists": 317,
+        "probes": 16,
+        "index_used_for_filtered_query": true,
+        "build_s": 12.9,
+        "unfiltered": {
+          "recall_at_10": 1.0,
+          "queries_returning_fewer_than_exact": 0,
+          "latency_ms": {
+            "n": 200,
+            "mean": 18.34,
+            "p50": 11.05,
+            "p90": 53.28,
+            "p99": 71.83,
+            "max": 86.65
+          }
+        },
+        "event_filtered": {
+          "recall_at_10": 0.934,
+          "queries_returning_fewer_than_exact": 0,
+          "latency_ms": {
+            "n": 200,
+            "mean": 19.57,
+            "p50": 11.11,
+            "p90": 55.95,
+            "p99": 75.83,
+            "max": 94.07
+          }
+        }
+      },
+      {
+        "index": "IVFFlat built after load",
+        "lists": 317,
+        "probes": 32,
+        "index_used_for_filtered_query": true,
+        "build_s": 12.9,
+        "unfiltered": {
+          "recall_at_10": 1.0,
+          "queries_returning_fewer_than_exact": 0,
+          "latency_ms": {
+            "n": 200,
+            "mean": 30.75,
+            "p50": 17.99,
+            "p90": 66.6,
+            "p99": 75.06,
+            "max": 99.29
+          }
+        },
+        "event_filtered": {
+          "recall_at_10": 0.986,
+          "queries_returning_fewer_than_exact": 0,
+          "latency_ms": {
+            "n": 200,
+            "mean": 33.85,
+            "p50": 19.13,
+            "p90": 70.8,
+            "p99": 85.57,
+            "max": 100.91
+          }
+        }
+      },
+      {
+        "index": "IVFFlat built after load",
+        "lists": 1001,
+        "probes": 1,
+        "index_used_for_filtered_query": true,
+        "build_s": 48.5,
+        "unfiltered": {
+          "recall_at_10": 1.0,
+          "queries_returning_fewer_than_exact": 0,
+          "latency_ms": {
+            "n": 200,
+            "mean": 3.74,
+            "p50": 2.75,
+            "p90": 4.92,
+            "p99": 19.19,
+            "max": 47.71
+          }
+        },
+        "event_filtered": {
+          "recall_at_10": 0.203,
+          "queries_returning_fewer_than_exact": 200,
+          "latency_ms": {
+            "n": 200,
+            "mean": 2.71,
+            "p50": 2.61,
+            "p90": 3.43,
+            "p99": 4.0,
+            "max": 12.8
+          }
+        }
+      },
+      {
+        "index": "IVFFlat built after load",
+        "lists": 1001,
+        "probes": 2,
+        "index_used_for_filtered_query": true,
+        "build_s": 48.5,
+        "unfiltered": {
+          "recall_at_10": 1.0,
+          "queries_returning_fewer_than_exact": 0,
+          "latency_ms": {
+            "n": 200,
+            "mean": 3.4,
+            "p50": 2.96,
+            "p90": 4.24,
+            "p99": 14.78,
+            "max": 22.43
+          }
+        },
+        "event_filtered": {
+          "recall_at_10": 0.276,
+          "queries_returning_fewer_than_exact": 196,
+          "latency_ms": {
+            "n": 200,
+            "mean": 3.11,
+            "p50": 2.91,
+            "p90": 4.14,
+            "p99": 5.88,
+            "max": 12.68
+          }
+        }
+      },
+      {
+        "index": "IVFFlat built after load",
+        "lists": 1001,
+        "probes": 4,
+        "index_used_for_filtered_query": true,
+        "build_s": 48.5,
+        "unfiltered": {
+          "recall_at_10": 1.0,
+          "queries_returning_fewer_than_exact": 0,
+          "latency_ms": {
+            "n": 200,
+            "mean": 4.43,
+            "p50": 3.6,
+            "p90": 5.24,
+            "p99": 20.77,
+            "max": 28.0
+          }
+        },
+        "event_filtered": {
+          "recall_at_10": 0.429,
+          "queries_returning_fewer_than_exact": 155,
+          "latency_ms": {
+            "n": 200,
+            "mean": 6.09,
+            "p50": 4.73,
+            "p90": 6.74,
+            "p99": 33.47,
+            "max": 36.86
+          }
+        }
+      },
+      {
+        "index": "IVFFlat built after load",
+        "lists": 1001,
+        "probes": 8,
+        "index_used_for_filtered_query": true,
+        "build_s": 48.5,
+        "unfiltered": {
+          "recall_at_10": 1.0,
+          "queries_returning_fewer_than_exact": 0,
+          "latency_ms": {
+            "n": 200,
+            "mean": 6.74,
+            "p50": 4.75,
+            "p90": 7.08,
+            "p99": 36.92,
+            "max": 62.19
+          }
+        },
+        "event_filtered": {
+          "recall_at_10": 0.625,
+          "queries_returning_fewer_than_exact": 63,
+          "latency_ms": {
+            "n": 200,
+            "mean": 9.75,
+            "p50": 6.86,
+            "p90": 12.68,
+            "p99": 41.54,
+            "max": 41.85
+          }
+        }
+      },
+      {
+        "index": "IVFFlat built after load",
+        "lists": 1001,
+        "probes": 16,
+        "index_used_for_filtered_query": true,
+        "build_s": 48.5,
+        "unfiltered": {
+          "recall_at_10": 1.0,
+          "queries_returning_fewer_than_exact": 0,
+          "latency_ms": {
+            "n": 200,
+            "mean": 9.95,
+            "p50": 6.36,
+            "p90": 23.17,
+            "p99": 44.59,
+            "max": 47.82
+          }
+        },
+        "event_filtered": {
+          "recall_at_10": 0.852,
+          "queries_returning_fewer_than_exact": 4,
+          "latency_ms": {
+            "n": 200,
+            "mean": 13.1,
+            "p50": 7.48,
+            "p90": 45.01,
+            "p99": 57.9,
+            "max": 84.88
+          }
+        }
+      },
+      {
+        "index": "IVFFlat built after load",
+        "lists": 1001,
+        "probes": 32,
+        "index_used_for_filtered_query": true,
+        "build_s": 48.5,
+        "unfiltered": {
+          "recall_at_10": 1.0,
+          "queries_returning_fewer_than_exact": 0,
+          "latency_ms": {
+            "n": 200,
+            "mean": 19.26,
+            "p50": 11.71,
+            "p90": 52.16,
+            "p99": 67.29,
+            "max": 92.27
+          }
+        },
+        "event_filtered": {
+          "recall_at_10": 0.979,
+          "queries_returning_fewer_than_exact": 0,
+          "latency_ms": {
+            "n": 200,
+            "mean": 18.5,
+            "p50": 10.75,
+            "p90": 52.51,
+            "p99": 58.88,
+            "max": 63.84
+          }
+        }
+      }
+    ],
+    "ivfflat_built_on_empty_table": {
+      "lists": 100,
+      "insert_s": 50.2,
+      "by_probes": [
+        {
+          "probes": 1,
+          "recall_at_10_unfiltered": 0.375,
+          "avg_rows_returned_of_10": 10.0
+        },
+        {
+          "probes": 10,
+          "recall_at_10_unfiltered": 0.926,
+          "avg_rows_returned_of_10": 10.0
+        },
+        {
+          "probes": 32,
+          "recall_at_10_unfiltered": 0.998,
+          "avg_rows_returned_of_10": 10.0
+        }
+      ],
+      "note": "same data and queries as the grid; recall vs exact unfiltered top-10"
+    },
+    "denormalised_table_rows": 100177,
+    "load_s": 100.7
+  },
+  "total_run_s": 1088
+}
