@@ -15,6 +15,9 @@
 # The work is exact (no approximate index) and limited to one event, so its cost grows with the number
 # of faces in that event, not with the size of the table.
 #
+# One row per PHOTO: a photo with several faces that match returns once, with its best score, and
+# LIMIT 50 counts photos (not faces).
+#
 # Named parameters: event_id, q (query embedding), thr (minimum similarity).
 FACE_SEARCH_SQL = """
 WITH ev AS MATERIALIZED (
@@ -26,7 +29,7 @@ SELECT
     ev.photo_id,
     ev.event_id,
     ev.thumbnail_url IS NOT NULL AS has_thumb,
-    1 - (f.embedding <=> %(q)s::vector) AS confidence
+    MAX(1 - (f.embedding <=> %(q)s::vector)) AS confidence
 FROM ev
 CROSS JOIN LATERAL (
     SELECT fe.embedding
@@ -35,6 +38,7 @@ CROSS JOIN LATERAL (
     OFFSET 0
 ) f
 WHERE 1 - (f.embedding <=> %(q)s::vector) >= %(thr)s
+GROUP BY ev.photo_id, ev.event_id, ev.thumbnail_url
 ORDER BY confidence DESC
 LIMIT 50
 """

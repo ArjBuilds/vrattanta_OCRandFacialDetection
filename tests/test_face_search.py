@@ -349,3 +349,49 @@ def test_corrupt_image_raises_unreadable(tmp_path, monkeypatch):
     with pytest.raises(face_mod.UnreadableImageError):
         face_mod.extract_face_embedding(str(bad))
     assert calls == []  # never sent to CompreFace
+
+
+# ── one row per photo, best score ────────────────────────────────────────────
+
+def seed_faces(event_id, sims):
+    """One photo carrying several faces with the given similarities to the query."""
+    pid = insert_photo(event_id)
+    for s in sims:
+        insert_face(pid, vec(s))
+    return pid
+
+
+def test_photo_with_two_matching_faces_appears_once_with_its_best_score(client, clean_db, jpeg_bytes, monkeypatch):
+    pid = seed_faces(EVENT, [0.90, 0.95])
+    patch_extractor(monkeypatch, [face(1.0)])
+    body = search(client, jpeg_bytes).json()
+    assert [p["photo_id"] for p in body["photos"]] == [pid]
+    assert body["photos"][0]["confidence"] == 0.95
+    assert body["total_matches"] == 1
+
+
+def test_only_the_matching_face_counts_when_the_other_is_below_threshold(client, clean_db, jpeg_bytes, monkeypatch):
+    pid = seed_faces(EVENT, [0.40, 0.88])
+    patch_extractor(monkeypatch, [face(1.0)])
+    photos = search(client, jpeg_bytes).json()["photos"]
+    assert [(p["photo_id"], p["confidence"]) for p in photos] == [(pid, 0.88)]
+
+
+def test_photos_are_ranked_by_their_best_face(client, clean_db, jpeg_bytes, monkeypatch):
+    a = seed_faces(EVENT, [0.80, 0.99])   # best face 0.99
+    b = seed_faces(EVENT, [0.95])         # best face 0.95
+    c = seed_faces(EVENT, [0.97, 0.96])   # best face 0.97
+    patch_extractor(monkeypatch, [face(1.0)])
+    photos = search(client, jpeg_bytes).json()["photos"]
+    assert [p["photo_id"] for p in photos] == [a, c, b]
+    assert [p["confidence"] for p in photos] == [0.99, 0.97, 0.95]
+
+
+def test_limit_counts_photos_not_faces(client, clean_db, jpeg_bytes, monkeypatch):
+    # 120 matching faces in 60 photos, scores interleaved so a photo's two faces are adjacent in the ranking:
+    # a LIMIT on faces would cover only 25 photos.
+    ids = [seed_faces(EVENT, [0.99 - i * 0.002, 0.99 - i * 0.002 - 0.001]) for i in range(60)]
+    patch_extractor(monkeypatch, [face(1.0)])
+    photos = search(client, jpeg_bytes).json()["photos"]
+    assert len(photos) == 50
+    assert len({p["photo_id"] for p in photos}) == 50 and {p["photo_id"] for p in photos} <= set(ids)

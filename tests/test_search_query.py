@@ -77,17 +77,28 @@ def test_query_keeps_its_two_fences():
     assert FACE_SEARCH_SQL.index("event_photos") < FACE_SEARCH_SQL.index("face_embeddings")
 
 
-def test_same_rows_and_order_as_the_query_it_replaced(clean_db):
+def per_photo(rows):
+    """Reference for 'one row per photo, best score': dedupe the old per-face rows in Python."""
+    best = {}
+    for r in rows:
+        pid, conf = str(r[0]), round(float(r[3]), 6)
+        best[pid] = max(best.get(pid, -1.0), conf)
+    return sorted(best.items(), key=lambda kv: -kv[1])[:50]
+
+
+def test_same_photos_and_order_as_the_old_query_deduplicated(clean_db):
     rng = random.Random(7)
     events = [str(uuid.uuid4()) for _ in range(12)]
     # distinct similarities so ordering is deterministic; some photos have two faces
     bulk_load((rng.choice(events), [rng.uniform(0.3, 1.0) for _ in range(rng.choice([1, 1, 2]))]) for _ in range(600))
+    unlimited = LEGACY_SQL.replace("LIMIT 50", "")
     for thr in (0.5, 0.7, 0.9):
         for ev in events:
             p = {"event_id": ev, "q": vec(1.0), "thr": thr}
-            old = [(str(r[0]), round(float(r[3]), 6)) for r in execute_query(LEGACY_SQL, p, fetch="all")]
-            new = [(str(r[0]), round(float(r[3]), 6)) for r in execute_query(FACE_SEARCH_SQL, p, fetch="all")]
-            assert new == old and len(new) <= 50
+            expected = per_photo(execute_query(unlimited, p, fetch="all"))
+            got = [(str(r[0]), round(float(r[3]), 6)) for r in execute_query(FACE_SEARCH_SQL, p, fetch="all")]
+            assert got == expected and len(got) <= 50
+            assert len({pid for pid, _ in got}) == len(got)  # no photo twice
 
 
 def test_unknown_event_returns_nothing(clean_db):
