@@ -56,7 +56,7 @@ from processing.face import FaceServiceError, extract_face_embedding, get_best_f
 
 API = ENV.get("BENCH_API_URL", "http://localhost:8000").rstrip("/")
 OUT_DIR = ROOT / "bench_out"
-THRESHOLD = float(ENV.get("MIN_FACE_CONFIDENCE") or 0.75)
+THRESHOLD = float(ENV.get("MIN_FACE_CONFIDENCE") or 0.70)
 CONTAINERS = ["media_ai_api", "media_ai_db", "compreface_core", "compreface_api",
               "compreface_admin", "compreface_ui", "compreface_db"]
 
@@ -471,6 +471,32 @@ def phase_accuracy(ds: Dataset, state: dict) -> dict:
                          "impostor_pairs_matched": f"{sum(v >= t for v in vals_i)}/{len(vals_i)}"})
         return rows
 
+    # The same selfies through the real endpoint, so the numbers reflect the deployed threshold, the
+    # one-row-per-photo query and the signed-URL response. (Respects the default 10 searches/minute limit.)
+    sess = requests.Session()
+    api_rows, outsider_results = [], []
+    for person, path in ds.selfies.items():
+        with open(path, "rb") as f:
+            r = sess.post(f"{API}/search/face", data={"event_id": event, "consent": "true"},
+                          files={"selfie": ("s.jpg", f, "image/jpeg")}, timeout=60)
+        r.raise_for_status()
+        ids = [x["photo_id"] for x in r.json()["photos"]]
+        if person in people:
+            api_rows.append({"person": hashlib.sha256(person.encode()).hexdigest()[:8], "returned": len(ids), "distinct": len(set(ids)),
+                             "correct_labelled": sum(labelled.get(i) == person for i in ids),
+                             "wrong_person_labelled": sum(labelled.get(i) not in (None, person) for i in ids),
+                             "not_in_labelled_set": sum(i not in labelled for i in ids)})
+        else:
+            outsider_results.append({"returned": len(ids)})
+        time.sleep(6.5)
+    api_check = {
+        "container_MIN_FACE_CONFIDENCE": sh("docker", "exec", "media_ai_api", "sh", "-c", "echo ${MIN_FACE_CONFIDENCE:-unset}"),
+        "people": api_rows,
+        "totals": {"correct_labelled": f"{sum(x['correct_labelled'] for x in api_rows)}/{len(labelled)}",
+                   "wrong_person_labelled": sum(x["wrong_person_labelled"] for x in api_rows),
+                   "duplicate_photos_in_any_result": sum(x["returned"] - x["distinct"] for x in api_rows)},
+        "outsider_results_returned": outsider_results,
+    }
     pct = lambda a, q: round(float(np.percentile(a, q)), 4)
     det = defaultdict(lambda: {"photos": 0, "with_face": 0, "faces": 0})
     for pid, m in mapping.items():
@@ -488,6 +514,7 @@ def phase_accuracy(ds: Dataset, state: dict) -> dict:
                        "impostor": {"n": len(impostor) + len(out_imp), "median": pct(impostor + out_imp, 50), "p95": pct(impostor + out_imp, 95),
                                     "p99": pct(impostor + out_imp, 99), "max": pct(impostor + out_imp, 100)}},
         "threshold_table": tbl(genuine, impostor + out_imp),
+        "through_the_api": api_check,
         "face_detection": {k: dict(v) for k, v in det.items()},
     }
 

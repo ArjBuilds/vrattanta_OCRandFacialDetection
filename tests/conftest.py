@@ -40,7 +40,7 @@ os.environ.update(
         "COMPREFACE_API_KEY": "test-compreface-key",
         "COMPREFACE_URL": "http://compreface.invalid",
         "SEARCH_RATE_LIMIT_PER_MINUTE": "0",
-        "MIN_FACE_CONFIDENCE": "0.75",
+        "MIN_FACE_CONFIDENCE": "0.70",
         "MAX_UPLOAD_MB": "25",
         "MAX_SELFIE_MB": "5",
         "CORS_ORIGINS": "",

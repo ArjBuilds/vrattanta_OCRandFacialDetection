@@ -1,0 +1,265 @@
+{
+  "phases_run": [
+    "accuracy",
+    "e2e"
+  ],
+  "end_to_end": {
+    "photos": 90,
+    "faces_stored": 177,
+    "processing_errors_logged": 1,
+    "batch_retriggers_needed": 1,
+    "upload_s": 11.9,
+    "batch_s": 76.3,
+    "total_s": 88.2,
+    "upload_photos_per_min": 453.7,
+    "batch_photos_per_min": 70.8,
+    "end_to_end_photos_per_min": 61.2,
+    "face_workers": "2",
+    "note": "upload is sequential, one HTTP request per file, as the portal does; batch starts when the upload ends"
+  },
+  "accuracy": {
+    "scope": "ranking and counts use only the labelled LFW photos in the event; RBNR photos are excluded from every accuracy number. LFW images are 250x250 and are NOT race photos.",
+    "queries": 10,
+    "labelled_photos": 30,
+    "photos_per_person": [
+      3
+    ],
+    "top1_accuracy": "10/10",
+    "top5_accuracy": "10/10",
+    "at_threshold": {
+      "threshold": 0.7,
+      "true_matches": "18/30",
+      "false_matches_other_labelled_person": "0/270"
+    },
+    "per_person": [
+      {
+        "person": "c644608d",
+        "own_photos": 3,
+        "found_at_threshold": 3
+      },
+      {
+        "person": "2219bc1e",
+        "own_photos": 3,
+        "found_at_threshold": 1
+      },
+      {
+        "person": "bd65cbff",
+        "own_photos": 3,
+        "found_at_threshold": 2
+      },
+      {
+        "person": "89d7a8f7",
+        "own_photos": 3,
+        "found_at_threshold": 0
+      },
+      {
+        "person": "5e4a9d17",
+        "own_photos": 3,
+        "found_at_threshold": 1
+      },
+      {
+        "person": "feb00282",
+        "own_photos": 3,
+        "found_at_threshold": 0
+      },
+      {
+        "person": "6b4f4210",
+        "own_photos": 3,
+        "found_at_threshold": 3
+      },
+      {
+        "person": "ab06d820",
+        "own_photos": 3,
+        "found_at_threshold": 3
+      },
+      {
+        "person": "a228db50",
+        "own_photos": 3,
+        "found_at_threshold": 3
+      },
+      {
+        "person": "6394f681",
+        "own_photos": 3,
+        "found_at_threshold": 2
+      }
+    ],
+    "out_of_set": {
+      "people": 1,
+      "results": [
+        {
+          "labelled_photos_at_or_above_threshold": 0,
+          "max_similarity_to_labelled_photo": 0.2556,
+          "max_similarity_to_any_photo": 0.4509
+        }
+      ],
+      "pairs_at_or_above_threshold": 0,
+      "pairs": 30
+    },
+    "similarity": {
+      "genuine": {
+        "n": 30,
+        "min": 0.2802,
+        "p25": 0.633,
+        "median": 0.7198,
+        "max": 0.9094
+      },
+      "impostor": {
+        "n": 300,
+        "median": 0.0599,
+        "p95": 0.2981,
+        "p99": 0.3933,
+        "max": 0.4778
+      }
+    },
+    "threshold_table": [
+      {
+        "threshold": 0.5,
+        "genuine_pairs_found": "28/30",
+        "impostor_pairs_matched": "0/300"
+      },
+      {
+        "threshold": 0.55,
+        "genuine_pairs_found": "24/30",
+        "impostor_pairs_matched": "0/300"
+      },
+      {
+        "threshold": 0.6,
+        "genuine_pairs_found": "23/30",
+        "impostor_pairs_matched": "0/300"
+      },
+      {
+        "threshold": 0.65,
+        "genuine_pairs_found": "22/30",
+        "impostor_pairs_matched": "0/300"
+      },
+      {
+        "threshold": 0.7,
+        "genuine_pairs_found": "18/30",
+        "impostor_pairs_matched": "0/300"
+      },
+      {
+        "threshold": 0.75,
+        "genuine_pairs_found": "12/30",
+        "impostor_pairs_matched": "0/300"
+      },
+      {
+        "threshold": 0.8,
+        "genuine_pairs_found": "7/30",
+        "impostor_pairs_matched": "0/300"
+      },
+      {
+        "threshold": 0.85,
+        "genuine_pairs_found": "4/30",
+        "impostor_pairs_matched": "0/300"
+      }
+    ],
+    "through_the_api": {
+      "container_MIN_FACE_CONFIDENCE": "0.70",
+      "people": [
+        {
+          "person": "c644608d",
+          "returned": 3,
+          "distinct": 3,
+          "correct_labelled": 3,
+          "wrong_person_labelled": 0,
+          "not_in_labelled_set": 0
+        },
+        {
+          "person": "2219bc1e",
+          "returned": 1,
+          "distinct": 1,
+          "correct_labelled": 1,
+          "wrong_person_labelled": 0,
+          "not_in_labelled_set": 0
+        },
+        {
+          "person": "bd65cbff",
+          "returned": 2,
+          "distinct": 2,
+          "correct_labelled": 2,
+          "wrong_person_labelled": 0,
+          "not_in_labelled_set": 0
+        },
+        {
+          "person": "89d7a8f7",
+          "returned": 0,
+          "distinct": 0,
+          "correct_labelled": 0,
+          "wrong_person_labelled": 0,
+          "not_in_labelled_set": 0
+        },
+        {
+          "person": "5e4a9d17",
+          "returned": 1,
+          "distinct": 1,
+          "correct_labelled": 1,
+          "wrong_person_labelled": 0,
+          "not_in_labelled_set": 0
+        },
+        {
+          "person": "feb00282",
+          "returned": 0,
+          "distinct": 0,
+          "correct_labelled": 0,
+          "wrong_person_labelled": 0,
+          "not_in_labelled_set": 0
+        },
+        {
+          "person": "6b4f4210",
+          "returned": 3,
+          "distinct": 3,
+          "correct_labelled": 3,
+          "wrong_person_labelled": 0,
+          "not_in_labelled_set": 0
+        },
+        {
+          "person": "ab06d820",
+          "returned": 3,
+          "distinct": 3,
+          "correct_labelled": 3,
+          "wrong_person_labelled": 0,
+          "not_in_labelled_set": 0
+        },
+        {
+          "person": "a228db50",
+          "returned": 3,
+          "distinct": 3,
+          "correct_labelled": 3,
+          "wrong_person_labelled": 0,
+          "not_in_labelled_set": 0
+        },
+        {
+          "person": "6394f681",
+          "returned": 2,
+          "distinct": 2,
+          "correct_labelled": 2,
+          "wrong_person_labelled": 0,
+          "not_in_labelled_set": 0
+        }
+      ],
+      "totals": {
+        "correct_labelled": "18/30",
+        "wrong_person_labelled": 0,
+        "duplicate_photos_in_any_result": 0
+      },
+      "outsider_results_returned": [
+        {
+          "returned": 0
+        }
+      ]
+    },
+    "face_detection": {
+      "lfw": {
+        "photos": 30,
+        "with_face": 30,
+        "faces": 31
+      },
+      "rbnr": {
+        "photos": 60,
+        "with_face": 59,
+        "faces": 146
+      }
+    }
+  },
+  "total_run_s": 164
+}

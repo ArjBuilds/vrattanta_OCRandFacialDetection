@@ -24,7 +24,8 @@ from api.models import FaceSearchResponse, PhotoMatch  # , BibSearchResponse, Bi
 
 router = APIRouter()
 
-MIN_FACE_CONFIDENCE = float(os.getenv("MIN_FACE_CONFIDENCE", "0.75"))
+# Not calibrated on race-like photos yet; see docs/DECISIONS.md.
+MIN_FACE_CONFIDENCE = float(os.getenv("MIN_FACE_CONFIDENCE", "0.70"))
 CONSENT_VERSION = os.getenv("CONSENT_VERSION", "v1")
 
 

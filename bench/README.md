@@ -13,7 +13,7 @@ vector index would behave at larger sizes. Results from the last run are in
 | `throughput` | CompreFace calls/s and faces/s, and per-call latency, at 1, 2 and 4 client workers | calls `processing.face.extract_face_embedding` on every event photo, bypassing the API and database |
 | `e2e` | Photos per minute from the first upload to the last photo processed | uploads every photo through `/upload` one at a time (as the portal does), triggers `/admin/batch`, polls until nothing is unattempted |
 | `search` | Search latency p50/p90/p99 | **full HTTP** (`POST /search/face`, sequential and 4 concurrent clients) and **SQL only** (the production query text on the real tables, plus `EXPLAIN ANALYZE`) |
-| `accuracy` | top-1 and top-5, matches and false matches at the 0.75 threshold, out-of-set results, genuine/impostor similarity distributions | uses the **labelled LFW images only** (see below) |
+| `accuracy` | top-1 and top-5, matches and false matches at the configured threshold (default 0.70), out-of-set results, genuine/impostor similarity distributions | uses the **labelled LFW images only** (see below) |
 | `index` | exact search vs IVFFlat over a grid of `lists` and `probes`, recall@10 against exact results, latency, with and without an event filter | **synthetic distractors** in a throwaway `bench` schema |
 
 ### Data and what it may claim

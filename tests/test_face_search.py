@@ -93,16 +93,16 @@ def seed(event_id, sim, n=1):
 # ── Vector query: threshold, ordering, scope, limit ──────────────────────────
 
 def test_returns_matches_above_threshold_best_first(client, clean_db, jpeg_bytes, monkeypatch):
-    a, b, c, below, far = (seed(EVENT, s)[0] for s in (0.95, 0.90, 0.76, 0.74, 0.50))
+    a, b, c, below, far = (seed(EVENT, s)[0] for s in (0.95, 0.90, 0.72, 0.68, 0.50))
     patch_extractor(monkeypatch, [face(1.0)])
     body = search(client, jpeg_bytes).json()
     assert [p["photo_id"] for p in body["photos"]] == [a, b, c]
-    assert [p["confidence"] for p in body["photos"]] == [0.95, 0.9, 0.76]
+    assert [p["confidence"] for p in body["photos"]] == [0.95, 0.9, 0.72]
     assert body["total_matches"] == 3
 
 
-def test_threshold_is_075(client, clean_db, jpeg_bytes, monkeypatch):
-    just_in, just_out = seed(EVENT, 0.7505)[0], seed(EVENT, 0.7495)[0]
+def test_threshold_is_070(client, clean_db, jpeg_bytes, monkeypatch):
+    just_in, just_out = seed(EVENT, 0.7005)[0], seed(EVENT, 0.6995)[0]
     patch_extractor(monkeypatch, [face(1.0)])
     ids = [p["photo_id"] for p in search(client, jpeg_bytes).json()["photos"]]
     assert just_in in ids and just_out not in ids
@@ -395,3 +395,25 @@ def test_limit_counts_photos_not_faces(client, clean_db, jpeg_bytes, monkeypatch
     photos = search(client, jpeg_bytes).json()["photos"]
     assert len(photos) == 50
     assert len({p["photo_id"] for p in photos}) == 50 and {p["photo_id"] for p in photos} <= set(ids)
+
+
+# ── threshold default ────────────────────────────────────────────────────────
+
+def test_default_threshold_is_070_when_unset(monkeypatch):
+    import importlib
+    import api.routes.search as search_mod
+
+    monkeypatch.delenv("MIN_FACE_CONFIDENCE", raising=False)
+    try:
+        importlib.reload(search_mod)
+        assert search_mod.MIN_FACE_CONFIDENCE == 0.70
+    finally:
+        monkeypatch.setenv("MIN_FACE_CONFIDENCE", "0.70")
+        importlib.reload(search_mod)
+
+
+def test_env_example_matches_the_code_default():
+    from pathlib import Path
+
+    text = (Path(__file__).resolve().parent.parent / ".env.example").read_text()
+    assert "\nMIN_FACE_CONFIDENCE=0.70\n" in text

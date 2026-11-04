@@ -14,7 +14,7 @@ Each measurement is a single run (no repeats), so differences of a few tens of p
 | Host | 13th Gen Intel Core i7-13650HX, 14 physical / 20 logical cores, 23.7 GiB RAM, Windows 11 |
 | Docker | server 29.9.2, Compose 5.6.1; Docker VM: 20 CPUs, 11.5 GiB |
 | Compose caps in effect (CPU / memory) | api 0.6 / 2300 MiB · db 0.5 / 1024 MiB · compreface-core 1.0 / 3072 MiB · compreface-api 0.4 / 768 MiB · admin 0.15 / 512 MiB · ui 0.1 / 128 MiB · compreface-db 0.25 / 256 MiB |
-| Settings | `FACE_WORKERS=2`, CompreFace `UWSGI_PROCESSES=2`, `UWSGI_THREADS=1`, match threshold 0.75, PostgreSQL 15.4, pgvector 0.5.1, `shared_buffers=128MB`, `work_mem=4MB` |
+| Settings | `FACE_WORKERS=2`, CompreFace `UWSGI_PROCESSES=2`, `UWSGI_THREADS=1`, match threshold 0.75 at the time of this run (the app default is now 0.70, see 4b), PostgreSQL 15.4, pgvector 0.5.1, `shared_buffers=128MB`, `work_mem=4MB` |
 | Photos | 90 event photos: **60 RBNR race photos** and **30 LFW photos** (10 people, 3 photos each); 11 selfies (10 people in the event plus 1 outsider who is in none of the event photos). Fingerprints (sha256, first 16 hex): RBNR `b772d050e9fc9cdb`, LFW `db2d69d7fc5edc84`, selfies `959d8d85e265611a` |
 | Faces | 177 faces stored for the 90 photos (RBNR 146 in 59 of 60 photos; LFW 31 in 30 of 30 photos) |
 
@@ -70,7 +70,9 @@ the vector query and URL signing; the CompreFace call dominates (single-call p50
 figure is client-side on localhost over only 177 faces in the event (query plan: hash join, sequential scans,
 0.67 ms server time), so it says nothing about scale. Section 5 does that.
 
-## 4. Accuracy (labelled LFW photos only, threshold 0.75)
+## 4. Accuracy (labelled LFW photos only)
+
+### 4a. First run, threshold 0.75
 
 Ranking and counts use only the 30 labelled LFW photos; RBNR photos are excluded from every number here.
 
@@ -106,7 +108,33 @@ Similarity distributions (information for threshold calibration; the threshold w
 In this set the highest different-person similarity (0.478) is far below the lowest threshold tried, so a lower
 threshold would have returned more of each person's photos with no false match. That is a statement about
 250x250 LFW portraits and 300 impostor pairs only; real events have far more impostor faces and harder
-photos. The threshold needs calibrating on real photos before changing it.
+photos.
+
+### 4b. Rerun at the new default, 0.70
+
+The default was then changed from 0.75 to 0.70 (`MIN_FACE_CONFIDENCE`). Same 10 people, same 30 labelled photos,
+rerun on 2026-11-04 ([`results-2026-11-04-threshold-0.70.json`](results-2026-11-04-threshold-0.70.json)),
+including the 11 selfies searched through the real `/search/face` endpoint with the container running 0.70.
+
+| Measure | 0.75 (first run) | **0.70 (rerun)** | 0.50 (same similarities, not deployed) |
+|---|---|---|---|
+| Top-1 | 10/10 | **10/10** | 10/10 (ranking does not depend on the threshold) |
+| Top-5 | 10/10 | **10/10** | 10/10 |
+| Person's photos returned (of 30) | 12 | **18** | 28 |
+| False matches: a labelled photo of a different person | 0/270 | **0/270** | 0/300 pairs |
+| Out-of-set person: results returned through the API | 0 | **0** | not applicable (highest similarity to any stored face 0.451, below 0.50) |
+
+* At 0.70, per person (photos returned of 3): 3, 1, 2, 0, 1, 0, 3, 3, 3, 2. Through the API, no result was a
+  duplicate and none belonged to a different labelled person.
+* **The outsider matched nothing at 0.70.** The outsider is in none of the 90 event photos; its highest
+  similarity to any stored face is 0.451.
+* 0.70 still misses 12 of 30 photos. The "0.50" column is the same similarity table read at 0.50 (28/30, 0/300),
+  shown for context only.
+
+**The threshold still needs calibrating on race-like photos.** These numbers come from ten people photographed
+as 250x250 portraits, with 300 impostor pairs. They say nothing about distance shots, motion blur, hats,
+sunglasses or crowds, and in a large event there are many more impostor faces than here, so the false-match
+rate at any threshold is unknown. The first calibration step is a labelled set of real race photos.
 
 ## 5. Index study (SYNTHETIC distractors)
 
