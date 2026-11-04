@@ -200,6 +200,20 @@ Without `COMPREFACE_API_KEY` set, `extract_face_embedding()` in `processing/face
 
 ---
 
+## Tests
+
+```bash
+pip install -r requirements-dev.txt
+pytest                       # unit + SQL tests; no CompreFace needed
+pytest -m integration        # end-to-end against the running docker stack (see below)
+```
+
+Tests that need real SQL create and drop a throwaway `media_ai_test` database in the Postgres container (`docker compose up -d db`); they are skipped with a reason if Postgres isn't reachable. They never touch the `media_ai` database. CompreFace is always mocked.
+
+The integration test needs the whole stack up, the CompreFace key in `.env`, and `FACE_TEST_PHOTOS` pointing at a local folder with `event\`, `selfies\<person>\` and `labels.csv` (photos are never committed). It uploads into a throwaway event and deletes it afterwards.
+
+---
+
 ## Project Structure
 
 ```
